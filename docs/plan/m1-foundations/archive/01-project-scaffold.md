@@ -37,6 +37,10 @@ Scaffold the Next.js + TypeScript application (App Router, Tailwind, src dir) wi
 - [x] In Vercel project settings, add `DATABASE_URL` and `BETTER_AUTH_SECRET` env vars (placeholders are fine for now)
 - [x] Confirm the app loads at the production Vercel URL
 
+### Step 5: Create GitHub remote & push
+- [x] Create a private GitHub repo with `gh repo create autosupport --private --source=. --remote=origin --push`
+- [x] Confirm the local `main` branch is pushed and tracked (fetch/pull works)
+
 ---
 
 ## Files to Modify
@@ -72,9 +76,10 @@ None in this plan.
   - Step 2: Replaced boilerplate `src/app/page.tsx` with a branded landing page (product name "AutoSupport", tagline, CTA links to `/login` and `/signup` — those routes 404 until plan 3). Updated metadata in `src/app/layout.tsx`. Created `.env.example` with `DATABASE_URL` and `BETTER_AUTH_SECRET` placeholders. Re-ran `npm run build` and `npm run lint` (both pass).
   - Step 3: Committed `chore: scaffold Next.js + TypeScript app` (commit `465f3db`).
   - Step 4: Linked to Vercel project `autosupport` (scope `ashutsoh1729s-projects`) and deployed via CLI. The installed CLI (46.0.5) was rejected by Vercel (requires ≥47.2.2), so it was upgraded to 58.5.1 and redeployed. Production URL `https://autosupport-peach.vercel.app` returns 200. Added placeholder `DATABASE_URL` and `BETTER_AUTH_SECRET` env vars to the Production environment (Sensitive type).
+  - Step 5: Created private repo `https://github.com/Ashutsoh1729/autosupport` via `gh repo create`. The initial push failed because git used the SSH protocol (`git@ssh.github.com: Permission denied (publickey)` — no SSH key on the account). Fixed by running `gh auth setup-git` and switching the origin URL to HTTPS (`https://github.com/Ashutsoh1729/autosupport.git`), then `git push -u origin main` succeeded. Branch `main` now tracks `origin/main`.
 - **Files Created** — `src/app/page.tsx` (landing page), `.env.example`, plus all scaffolded files (package.json, tsconfig.json, next.config.ts, eslint.config.mjs, postcss.config.mjs, tailwind via globals.css, src/app/layout.tsx, src/app/globals.css, public/*, README.md, AGENTS.md, CLAUDE.md).
 - **Files Modified** — `.gitignore` (re-added whiteboard ignore + `!.env.example`); `src/app/layout.tsx` (metadata).
 - **Remaining / Known Gaps**
   - `/login` and `/signup` links on the landing page 404 until plan 3 (expected).
-  - GitHub repo not created yet — per user decision, local CLI deploy first; GitHub integration to be wired later (auto-deploy on push). Requires granting the `autosupport` repo access to Vercel.
+  - GitHub integration with Vercel not wired yet — the repo now exists at `github.com/Ashutsoh1729/autosupport`; enabling auto-deploy requires granting the `autosupport` repo access to Vercel's GitHub app.
   - Env vars are placeholders until plans 2/3 provide real values (Neon connection string, generated auth secret).
