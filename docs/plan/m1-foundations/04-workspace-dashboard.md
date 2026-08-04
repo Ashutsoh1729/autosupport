@@ -18,24 +18,24 @@ Add a Better Auth `databaseHooks` hook that creates workspace + membership in a 
 ## Implementation Steps
 
 ### Step 1: Workspace on signup
-- [ ] Modify `src/lib/auth.ts` to add `databaseHooks.user.create.after`: on new user, run `db.transaction` inserting a default `workspaces` row (name derived from user name, e.g. `${name}'s Workspace`) and an owner `memberships` row linked to `user.id`
-- [ ] Ensure the hook is a no-op if the user already has a workspace (idempotent)
+- [x] Modify `src/lib/auth.ts` to add `databaseHooks.user.create.after`: on new user, run `db.transaction` inserting a default `workspaces` row (name derived from user name, e.g. `${name}'s Workspace`) and an owner `memberships` row linked to `user.id`
+- [x] Ensure the hook is a no-op if the user already has a workspace (idempotent)
 
 ### Step 2: Dashboard page
-- [ ] Create `src/app/dashboard/page.tsx` as a server component: call `auth.api.getSession({ headers: await headers() })`, `redirect("/login")` if there is no session, then query the user's workspace via Drizzle (`memberships` join `workspaces`)
-- [ ] If no workspace exists for the authenticated user, create a default workspace (`${name}'s Workspace`) and owner membership in a transaction (handles existing users without workspaces)
-- [ ] Render the workspace name, the user's email, and a client `SignOutButton` that calls `authClient.signOut()` from `src/lib/auth-client.ts`
-- [ ] Add a fallback message if workspace creation fails (should not happen in normal flow)
+- [x] Create `src/app/dashboard/page.tsx` as a server component: call `auth.api.getSession({ headers: await headers() })`, `redirect("/login")` if there is no session, then query the user's workspace via Drizzle (`memberships` join `workspaces`)
+- [x] If no workspace exists for the authenticated user, create a default workspace (`${name}'s Workspace`) and owner membership in a transaction (handles existing users without workspaces)
+- [x] Render the workspace name, the user's email, and a client `SignOutButton` that calls `authClient.signOut()` from `src/lib/auth-client.ts`
+- [x] Add a fallback message if workspace creation fails (should not happen in normal flow)
 
 ### Step 3: Header & layout
-- [ ] Update `src/app/layout.tsx` (or a dashboard-specific layout) to include a header with a link to the landing page, and a "Sign out" action when authenticated
-- [ ] Add a "Get started" / "Login" link from the landing page (`src/app/page.tsx`)
+- [x] Update `src/app/layout.tsx` (or a dashboard-specific layout) to include a header with a link to the landing page, and a "Sign out" action when authenticated
+- [x] Add a "Get started" / "Login" link from the landing page (`src/app/page.tsx`)
 
 ### Step 4: Verify & deploy
-- [ ] Local end-to-end check: sign up a fresh account in the browser → lands on `/dashboard` → sees the auto-created workspace and email → signs out → `/dashboard` redirects to `/login`
-- [ ] Test with an existing user without workspace: sign in → dashboard creates default workspace → shows workspace name
-- [ ] Run `npm run build` and confirm it passes
-- [ ] Commit with message `feat: workspace + protected dashboard`
+- [x] Local end-to-end check: sign up a fresh account in the browser → lands on `/dashboard` → sees the auto-created workspace and email → signs out → `/dashboard` redirects to `/login`
+- [x] Test with an existing user without workspace: sign in → dashboard creates default workspace → shows workspace name
+- [x] Run `npm run build` and confirm it passes
+- [x] Commit with message `feat: workspace + protected dashboard`
 - [ ] Deploy to Vercel; ensure `DATABASE_URL` and `BETTER_AUTH_SECRET` are set in production env
 - [ ] Verify the full sign-up → dashboard flow at the live URL
 
