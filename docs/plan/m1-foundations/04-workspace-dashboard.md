@@ -1,6 +1,6 @@
 # M1 Foundations — Plan 4: Workspace & Dashboard
 
-Status: Pending
+Status: In Progress
 
 ## Description
 Auto-create a default workspace (with an owner membership) when a user signs up, and build the protected dashboard page that shows the current user's workspace. Handle existing users without workspaces by creating a default workspace on the fly. Deploy to Vercel and verify the milestone is demoable: **sign up and see a workspace**.
