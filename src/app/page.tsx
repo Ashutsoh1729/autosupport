@@ -1,6 +1,14 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { headers } from "next/headers";
+import { auth } from "@/lib/auth";
 
-export default function Home() {
+export default async function Home() {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (session) {
+    redirect("/dashboard");
+  }
+
   return (
     <div className="flex flex-1 flex-col items-center justify-center bg-zinc-50 px-6 dark:bg-black">
       <main className="flex w-full max-w-3xl flex-col items-center gap-8 py-24 text-center">
