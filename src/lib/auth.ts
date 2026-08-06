@@ -2,7 +2,7 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "@/lib/db";
 import { user, session, account, verification } from "@/lib/db/auth-schema";
-import { workspaces, memberships } from "@/lib/db/schema";
+import { workspaces, memberships, projects } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
 export const auth = betterAuth({
@@ -48,6 +48,12 @@ export const auth = betterAuth({
               userId: createdUser.id,
               workspaceId: workspace.id,
               role: "owner",
+            });
+
+            // Create default project
+            await tx.insert(projects).values({
+              workspaceId: workspace.id,
+              name: "Default Project",
             });
           });
         },
