@@ -22,5 +22,15 @@ export const memberships = pgTable(
   (table) => [uniqueIndex("memberships_user_workspace_unique").on(table.userId, table.workspaceId)],
 );
 
+export const projects = pgTable("projects", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export type Workspace = typeof workspaces.$inferSelect;
 export type Membership = typeof memberships.$inferSelect;
+export type Project = typeof projects.$inferSelect;

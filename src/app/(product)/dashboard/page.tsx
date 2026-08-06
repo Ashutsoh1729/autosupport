@@ -3,9 +3,10 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { workspaces, memberships } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { workspaces, memberships, projects } from "@/lib/db/schema";
+import { eq, asc } from "drizzle-orm";
 import { SignOutButton } from "@/components/sign-out-button";
+import { NewProjectForm } from "@/components/new-project-form";
 
 type WorkspaceInfo = {
   id: string;
@@ -96,6 +97,12 @@ export default async function DashboardPage() {
     session.user.name,
   );
 
+  const projectRows = await db
+    .select()
+    .from(projects)
+    .where(eq(projects.workspaceId, workspace.id))
+    .orderBy(asc(projects.createdAt));
+
   return (
     <div className="flex flex-1 flex-col bg-zinc-50 dark:bg-black">
       {/* Header */}
@@ -110,17 +117,47 @@ export default async function DashboardPage() {
       </header>
 
       {/* Dashboard content */}
-      <main className="flex flex-1 flex-col items-center justify-center px-6">
-        <div className="flex w-full max-w-md flex-col gap-6 text-center">
-          <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-            Dashboard
-          </h1>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            Workspace: {workspace.name}
-          </p>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            Signed in as {session.user.email}
-          </p>
+      <main className="flex flex-1 flex-col items-center px-6 py-8">
+        <div className="flex w-full max-w-2xl flex-col gap-6">
+          <div className="text-center">
+            <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+              Dashboard
+            </h1>
+            <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+              Workspace: {workspace.name}
+            </p>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              Signed in as {session.user.email}
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">
+                Projects
+              </h2>
+              <NewProjectForm workspaceId={workspace.id} />
+            </div>
+
+            {projectRows.length === 0 ? (
+              <p className="rounded-lg border border-dashed border-zinc-300 p-6 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+                No projects yet — create one
+              </p>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {projectRows.map((project) => (
+                  <li
+                    key={project.id}
+                    className="rounded-lg border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900"
+                  >
+                    <p className="font-medium text-zinc-900 dark:text-zinc-50">
+                      {project.name}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
       </main>
     </div>
