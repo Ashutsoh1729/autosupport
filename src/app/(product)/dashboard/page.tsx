@@ -146,13 +146,15 @@ export default async function DashboardPage() {
             ) : (
               <ul className="flex flex-col gap-2">
                 {projectRows.map((project) => (
-                  <li
-                    key={project.id}
-                    className="rounded-lg border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900"
-                  >
-                    <p className="font-medium text-zinc-900 dark:text-zinc-50">
-                      {project.name}
-                    </p>
+                  <li key={project.id}>
+                    <Link
+                      href={`/dashboard/projects/${project.id}`}
+                      className="block rounded-lg border border-zinc-200 bg-white px-4 py-3 hover:border-zinc-300 hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700 dark:hover:bg-zinc-800"
+                    >
+                      <p className="font-medium text-zinc-900 dark:text-zinc-50">
+                        {project.name}
+                      </p>
+                    </Link>
                   </li>
                 ))}
               </ul>
