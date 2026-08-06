@@ -3,17 +3,17 @@
 > Maintained by the plan-executor skill after each completed plan.
 
 ## Current Status
-- Milestone: M1 Foundations (in progress)
-- Completed plans: `01-project-scaffold`, `02-database-schema`, `03-authentication` (first two archived; 03 next to archive)
-- Next plan: `04-workspace-dashboard` (pending)
+- Milestone: M1 Foundations (complete)
+- Completed plans: `01-project-scaffold`, `02-database-schema`, `03-authentication`, `04-workspace-dashboard` (all archived)
+- Next milestone: M2 Knowledge Base + Projects (plans drafted in `docs/plan/m2-knowledge-base/`)
 
 ## Key Files
 - `src/app/page.tsx` — landing page (server component)
 - `src/app/layout.tsx` — root layout + metadata
 - `src/app/globals.css` — Tailwind v4 entry + theme
-- `src/app/login/page.tsx` + `src/app/login/login-form.tsx` — sign-in page + client form
-- `src/app/signup/page.tsx` + `src/app/signup/signup-form.tsx` — sign-up page + client form
-- `src/app/dashboard/page.tsx` — protected dashboard (minimal placeholder; enhanced in plan 4)
+- `src/app/login/page.tsx` + `src/app/login/login-form.tsx` — sign-in page + client form (in `(auth)` route group)
+- `src/app/signup/page.tsx` + `src/app/signup/signup-form.tsx` — sign-up page + client form (in `(auth)` route group)
+- `src/app/dashboard/page.tsx` — protected dashboard showing workspace + projects (in `(product)` route group)
 - `src/app/api/auth/[...all]/route.ts` — Better Auth route handler
 - `src/lib/db.ts` — Drizzle `db` singleton over a `pg` Pool
 - `src/lib/auth.ts` — Better Auth server config (Drizzle adapter + email/password)
@@ -30,12 +30,13 @@
 - `Home` (`src/app/page.tsx`) — renders the branded landing page
 - `LoginForm` (`src/app/login/login-form.tsx`) — calls `authClient.signIn.email`, redirects to `/dashboard`
 - `SignupForm` (`src/app/signup/signup-form.tsx`) — calls `authClient.signUp.email`, redirects to `/dashboard`
-- `DashboardPage` (`src/app/dashboard/page.tsx`) — `auth.api.getSession` + `redirect("/login")` guard (placeholder)
-- `auth` (`src/lib/auth.ts`) — Better Auth instance (Drizzle adapter, email/password, `baseURL`)
+- `DashboardPage` (`src/app/(product)/dashboard/page.tsx`) — `auth.api.getSession` guard + `getOrCreateWorkspace` (creates default workspace on the fly), renders workspace name + email
+- `auth` (`src/lib/auth.ts`) — Better Auth instance (Drizzle adapter, email/password, `databaseHooks.user.create.after` signup hook, `baseURL`)
 - `authClient` (`src/lib/auth-client.ts`) — browser-side auth client
 - `db`, `pool` (`src/lib/db.ts`) — Drizzle client + `pg` Pool singleton
 - `workspaces`, `memberships` + type exports (`src/lib/db/schema.ts`) — table definitions
 - `user`, `session`, `account`, `verification` (`src/lib/db/auth-schema.ts`) — Better Auth tables (CLI-generated)
+- `SignOutButton` (`src/components/sign-out-button.tsx`) — client sign-out control in dashboard header
 
 ## Dependencies
 - `next` 16.3.0, `react` 19.2.8, `react-dom` 19.2.8
@@ -43,9 +44,9 @@
 - dev: `drizzle-kit`, `@types/pg`, `tailwindcss` ^4, `@tailwindcss/postcss`, `typescript` ^5, `eslint` ^9, `eslint-config-next` 16.3.0
 
 ## Environment Variables
-- `DATABASE_URL` — Neon Postgres connection string (set locally in `.env`; placeholder on Vercel)
-- `BETTER_AUTH_SECRET` — Better Auth secret (set locally in `.env`; must be set in Vercel)
-- `BETTER_AUTH_URL` — app origin for Better Auth callbacks/redirects (`http://localhost:3000` locally; set to production URL on Vercel)
+- `DATABASE_URL` — Neon Postgres connection string (set locally in `.env`; set in Vercel production)
+- `BETTER_AUTH_SECRET` — Better Auth secret (set locally in `.env`; set in Vercel production)
+- `BETTER_AUTH_URL` — app origin for Better Auth callbacks/redirects (`http://localhost:3000` locally; production URL on Vercel)
 
 ## API Endpoints
 - `GET/POST /api/auth/*` — Better Auth endpoints (sign-up, sign-in, sign-out, get-session, etc.)
