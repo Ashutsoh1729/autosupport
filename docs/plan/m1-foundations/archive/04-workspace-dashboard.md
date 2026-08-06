@@ -1,6 +1,6 @@
 # M1 Foundations — Plan 4: Workspace & Dashboard
 
-Status: In Progress
+Status: Completed
 
 ## Description
 Auto-create a default workspace (with an owner membership) when a user signs up, and build the protected dashboard page that shows the current user's workspace. Handle existing users without workspaces by creating a default workspace on the fly. Deploy to Vercel and verify the milestone is demoable: **sign up and see a workspace**.
@@ -36,8 +36,8 @@ Add a Better Auth `databaseHooks` hook that creates workspace + membership in a 
 - [x] Test with an existing user without workspace: sign in → dashboard creates default workspace → shows workspace name
 - [x] Run `npm run build` and confirm it passes
 - [x] Commit with message `feat: workspace + protected dashboard`
-- [ ] Deploy to Vercel; ensure `DATABASE_URL` and `BETTER_AUTH_SECRET` are set in production env
-- [ ] Verify the full sign-up → dashboard flow at the live URL
+- [x] Deploy to Vercel; ensure `DATABASE_URL`, `BETTER_AUTH_SECRET`, and `BETTER_AUTH_URL` are set in production env
+- [x] Verify the full sign-up → dashboard flow at the live URL
 
 ---
 
@@ -70,3 +70,37 @@ Add a Better Auth `databaseHooks` hook that creates workspace + membership in a 
 - `databaseHooks.user.create.after` must be idempotent (skip if the workspace already exists).
 - Dashboard page must check for workspace existence and create if missing (belt-and-suspenders approach).
 - The demoable milestone criteria is met when a fresh sign-up lands on `/dashboard` showing a workspace.
+
+---
+
+## Execution Notes
+
+### Architecture
+The plan wraps the M1 flow around a self-healing "get or create" workspace helper rather than relying solely on the signup hook. Two layers of enforcement: (a) a Better Auth `databaseHooks.user.create.after` that creates workspace + owner membership atomically on signup, and (b) a `getOrCreateWorkspace` fallback inside the dashboard that creates a default workspace on the fly for pre-existing users. This mirrors the plan's Workflow (hook → server page → header) and Data Model (`workspaces` + `memberships`).
+
+### How each step was implemented
+
+- **Step 1 — Workspace on signup:** added `databaseHooks.user.create.after` in `src/lib/auth.ts`. It runs a `db.transaction` inserting a `workspaces` row (name derived from user's name) + an owner `memberships` row referencing `user.id`. Made idempotent (no-op if the user already has a workspace).
+- **Step 2 — Dashboard page:** `src/app/(product)/dashboard/page.tsx` is a server component calling `auth.api.getSession({ headers })`, redirecting to `/login` if unauthenticated, then calling `getOrCreateWorkspace` (queries membership join workspace; creates both in a transaction if missing). Renders workspace name + user email + `SignOutButton`.
+- **Step 3 — Header & layout:** root layout gained a header linking to the landing page; landing page links to login/signup; a client `SignOutButton` calls `authClient.signOut()`. Auth pages moved into a `src/app/(auth)` route group and dashboard into `src/app/(product)` for clean organization.
+- **Step 4 — Verify & deploy:** local end-to-end (fresh signup → dashboard, existing user without workspace → auto workspace, sign-out redirect) confirmed; `npm run build` passes; deployed with `vercel --prod`. Env vars `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` set in Vercel production; live URL verified.
+
+### Files Created
+
+- `src/components/sign-out-button.tsx` — client component calling `authClient.signOut()`
+- `src/app/(product)/dashboard/page.tsx` — protected dashboard (server component)
+- `src/app/(auth)/login/*`, `src/app/(auth)/signup/*` — moved auth pages into a route group
+
+### Files Modified
+
+- `src/lib/auth.ts` — added `databaseHooks.user.create.after` signup hook
+- `src/app/layout.tsx` — added dashboard header/nav
+- `src/app/page.tsx` — landing page links to login/signup
+- `docs/plan/m1-foundations/04-workspace-dashboard.md` — status to Completed
+- `docs/project-state.md` — updated to reflect completion
+
+### Remaining / Known Gaps
+
+- Members/invites (scoped roles) are intentionally deferred to M6 (spec §4, §6.1).
+- Project CRUD was added to the spec's flow 1 and M2 plan 01, but not yet implemented.
+- Deployment protection/SSO may intercept some deep links; normal `/`, `/login`, `/signup`, `/dashboard` flows work.

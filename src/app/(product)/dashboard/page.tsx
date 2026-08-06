@@ -12,7 +12,10 @@ type WorkspaceInfo = {
   name: string;
 };
 
-async function getOrCreateWorkspace(userId: string, userName: string | null): Promise<WorkspaceInfo> {
+async function getOrCreateWorkspace(
+  userId: string,
+  userName: string | null,
+): Promise<WorkspaceInfo> {
   // Query for user's workspace
   const userMemberships = await db
     .select({
@@ -32,9 +35,7 @@ async function getOrCreateWorkspace(userId: string, userName: string | null): Pr
   }
 
   // Create default workspace if none exists (handles existing users)
-  const workspaceName = userName
-    ? `${userName}'s Workspace`
-    : "My Workspace";
+  const workspaceName = userName ? `${userName}'s Workspace` : "My Workspace";
 
   // Double-check for race conditions
   const existingMembership = await db
@@ -90,7 +91,10 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
-  const workspace = await getOrCreateWorkspace(session.user.id, session.user.name);
+  const workspace = await getOrCreateWorkspace(
+    session.user.id,
+    session.user.name,
+  );
 
   return (
     <div className="flex flex-1 flex-col bg-zinc-50 dark:bg-black">
