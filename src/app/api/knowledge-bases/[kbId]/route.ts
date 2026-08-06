@@ -6,10 +6,10 @@ import { requireKnowledgeBaseAccess } from "@/lib/tenancy";
 
 export async function PUT(
   request: Request,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ kbId: string }> },
 ) {
-  const { id } = await params;
-  const access = await requireKnowledgeBaseAccess(request, id);
+  const { kbId } = await params;
+  const access = await requireKnowledgeBaseAccess(request, kbId);
   if ("response" in access) return access.response;
 
   const body = await request.json().catch(() => null);
@@ -25,7 +25,7 @@ export async function PUT(
   const [updated] = await db
     .update(knowledgeBases)
     .set({ name })
-    .where(eq(knowledgeBases.id, id))
+    .where(eq(knowledgeBases.id, kbId))
     .returning();
 
   return NextResponse.json(updated);
@@ -33,13 +33,13 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ kbId: string }> },
 ) {
-  const { id } = await params;
-  const access = await requireKnowledgeBaseAccess(request, id);
+  const { kbId } = await params;
+  const access = await requireKnowledgeBaseAccess(request, kbId);
   if ("response" in access) return access.response;
 
-  await db.delete(knowledgeBases).where(eq(knowledgeBases.id, id));
+  await db.delete(knowledgeBases).where(eq(knowledgeBases.id, kbId));
 
   return NextResponse.json({ ok: true });
 }

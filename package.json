@@ -9,9 +9,14 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@ai-sdk/google": "^4.0.36",
+    "@aws-sdk/client-s3": "^3.1104.0",
+    "ai": "^7.0.55",
     "better-auth": "^1.6.25",
     "drizzle-orm": "^0.45.2",
+    "inngest": "^4.16.0",
     "next": "16.3.0",
+    "pdf-parse": "^2.4.5",
     "pg": "^8.22.0",
     "react": "19.2.8",
     "react-dom": "19.2.8"
