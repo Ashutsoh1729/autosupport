@@ -89,10 +89,15 @@ export default async function ProjectDetailPage({
                     key={kb.id}
                     className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900"
                   >
-                    <p className="font-medium text-zinc-900 dark:text-zinc-50">
-                      {kb.name}
-                    </p>
-                    <KnowledgeBaseRowActions kb={kb} />
+                    <div className="flex items-center justify-between gap-2">
+                      <Link
+                        href={`/dashboard/projects/${project.id}/knowledge-bases/${kb.id}`}
+                        className="min-w-0 truncate font-medium text-zinc-900 hover:underline dark:text-zinc-50"
+                      >
+                        {kb.name}
+                      </Link>
+                      <KnowledgeBaseRowActions kb={kb} />
+                    </div>
                   </li>
                 ))}
               </ul>

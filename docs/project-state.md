@@ -4,8 +4,8 @@
 
 ## Current Status
 - Milestone: M2 Knowledge Base + Projects (in progress)
-- Completed plans: M1 all (`01-project-scaffold`, `02-database-schema`, `03-authentication`, `04-workspace-dashboard`), M2 `01-project-crud`, `02-knowledge-base-crud` (all archived)
-- Next plan: M2 `03-source-ingestion`
+- Completed plans: M1 all (`01-project-scaffold`, `02-database-schema`, `03-authentication`, `04-workspace-dashboard`), M2 `01-project-crud`, `02-knowledge-base-crud`, `03-source-ingestion` (all archived)
+- Next plan: M2 `04-retrieval-test-panel`
 
 ## Key Files
 - `src/app/page.tsx` — landing page (server component)
@@ -18,19 +18,28 @@
 - `src/app/api/workspaces/[workspaceId]/projects/route.ts` — GET/POST projects (membership-guarded)
 - `src/app/api/projects/[projectId]/knowledge-bases/route.ts` — GET/POST knowledge bases (tenancy-guarded)
 - `src/app/api/knowledge-bases/[id]/route.ts` — PUT/DELETE knowledge base (tenancy-guarded)
+- `src/app/api/knowledge-bases/[kbId]/route.ts` — PUT/DELETE knowledge base (tenancy-guarded; renamed from `[id]` to fix Next 16 dynamic-slug clash)
+- `src/app/api/knowledge-bases/[kbId]/sources/route.ts` — GET/POST sources (text + url kinds, tenancy-guarded)
+- `src/app/api/knowledge-bases/[kbId]/sources/upload/route.ts` — multipart file upload (PDF/TXT/MD → R2)
+- `src/app/api/sources/[id]/route.ts` — DELETE source (removes R2 object for file type)
+- `src/app/api/inngest/route.ts` — Inngest serve handler (GET/POST/PUT)
 - `src/app/(product)/dashboard/projects/[projectId]/page.tsx` — project detail / KB manager page
+- `src/app/(product)/dashboard/projects/[projectId]/knowledge-bases/[kbId]/page.tsx` — KB detail / sources page
 - `src/lib/tenancy.ts` — `requireProjectAccess` / `requireKnowledgeBaseAccess` multi-tenant guards
+- `src/lib/ai.ts` — Gemini embedding model (`gemini-embedding-001`, 768 dims via `providerOptions.google.outputDimensionality`) + `embedTexts`/`embedText`
+- `src/lib/inngest.ts` — Inngest client + `chunkSource` job (extract → chunk → embed → store) + `chunkText`/`extractSourceText` + `sendKnowledgeSourceCreated`
+- `src/lib/r2.ts` — R2 upload/get/remove + `sourceObjectKey`
 - `src/lib/db.ts` — Drizzle `db` singleton over a `pg` Pool
 - `src/lib/auth.ts` — Better Auth server config (Drizzle adapter + email/password)
 - `src/lib/auth-client.ts` — Better Auth React client
-- `src/lib/db/schema.ts` — app tables: `workspaces`, `memberships`, `projects`, `knowledge_bases` + types
+- `src/lib/db/schema.ts` — app tables: `workspaces`, `memberships`, `projects`, `knowledge_bases`, `knowledge_sources`, `chunks` (pgvector HNSW index) + types
 - `src/lib/db/auth-schema.ts` — Better Auth tables: `user`, `session`, `account`, `verification` (CLI-generated)
 - `drizzle.config.ts` — drizzle-kit config (Neon Postgres; schema list includes auth-schema)
-- `drizzle/` — generated migrations (0000 initial, 0001 auth, 0002 projects, 0003 knowledge_bases)
-- `.env.example` — env template (`DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`)
+- `drizzle/` — generated migrations (0000 initial, 0001 auth, 0002 projects, 0003 knowledge_bases, 0004 sources + chunks)
+- `.env.example` — env template (`DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `GEMINI_*`, `R2_*`, `INNGEST_*`)
 - `docs/spec.md` — product specification + milestones
 - `docs/plan/m1-foundations/` — archived M1 plans
-- `docs/plan/m2-knowledge-base/` — M2 plans (01, 02 archived)
+- `docs/plan/m2-knowledge-base/` — M2 plans (01, 02, 03 archived)
 
 ## Key Functions Summary
 - `Home` (`src/app/page.tsx`) — renders the branded landing page
@@ -47,19 +56,34 @@
 - `GET/POST projects` handlers (`src/app/api/workspaces/[workspaceId]/projects/route.ts`) — list/create projects with session + membership guard
 - `requireProjectAccess` / `requireKnowledgeBaseAccess` (`src/lib/tenancy.ts`) — resolve project/KB → workspace → membership, 401/403/404
 - `GET/POST knowledge-bases` handlers (`src/app/api/projects/[projectId]/knowledge-bases/route.ts`) — list/create KBs (tenancy-guarded)
-- `PUT/DELETE knowledge-bases` handlers (`src/app/api/knowledge-bases/[id]/route.ts`) — rename/delete KB (tenancy-guarded)
-- `ProjectDetailPage` (`src/app/(product)/dashboard/projects/[projectId]/page.tsx`) — KB manager page
+- `PUT/DELETE knowledge-bases` handlers (`src/app/api/knowledge-bases/[kbId]/route.ts`) — rename/delete KB (tenancy-guarded)
+- `GET/POST sources` handlers (`src/app/api/knowledge-bases/[kbId]/sources/route.ts`) — list sources; create text/url source + enqueue Inngest (tenancy-guarded)
+- `POST sources/upload` handler (`src/app/api/knowledge-bases/[kbId]/sources/upload/route.ts`) — multipart file upload (PDF/TXT/MD → R2, `sourceObjectKey`), enqueues Inngest
+- `DELETE source` handler (`src/app/api/sources/[id]/route.ts`) — delete source; removes R2 object for file type, cascades chunks
+- `ProjectDetailPage` (`src/app/(product)/dashboard/projects/[projectId]/page.tsx`) — KB manager page (KB names link to detail page)
+- `KnowledgeBaseDetailPage` (`…/knowledge-bases/[kbId]/page.tsx`) — lists sources with status badges + add/delete controls
 - `NewKnowledgeBaseForm` / `KnowledgeBaseRowActions` (`src/components/knowledge-base-forms.tsx`) — create/rename/delete KB client controls
+- `SourceForms` / `SourceRowActions` (`src/components/source-forms.tsx`) — text/URL/file source forms + delete control
+- `chunkSource` (`src/lib/inngest.ts`) — Inngest fn: `load-source` → `mark-processing` → `extract-text` → `chunk-text` → `embed-chunks` → `store-chunks` → `mark-ready`, catch → `mark-failed` (id `process/knowledge-source`, trigger `knowledge-source.created`)
+- `chunkText` (`src/lib/inngest.ts`) — ~500-char chunks, 100 overlap, newline/space boundaries
+- `extractSourceText` (`src/lib/inngest.ts`) — text inline, URL via fetch + `stripHtml`, file via R2 + `pdf-parse`
+- `embedTexts` / `embedText` (`src/lib/ai.ts`) — Gemini `embedMany`/`embed` wrappers with `outputDimensionality: 768`
+- `uploadToR2` / `getFromR2` / `removeFromR2` (`src/lib/r2.ts`) — R2 object storage (S3 API)
 
 ## Dependencies
 - `next` 16.3.0, `react` 19.2.8, `react-dom` 19.2.8
 - `drizzle-orm`, `pg`, `better-auth`
+- `inngest` ^4, `ai` ^7, `@ai-sdk/google`, `@aws-sdk/client-s3`, `pdf-parse` ^2
 - dev: `drizzle-kit`, `@types/pg`, `tailwindcss` ^4, `@tailwindcss/postcss`, `typescript` ^5, `eslint` ^9, `eslint-config-next` 16.3.0
 
 ## Environment Variables
 - `DATABASE_URL` — Neon Postgres connection string (set locally in `.env`; set in Vercel production)
 - `BETTER_AUTH_SECRET` — Better Auth secret (set locally in `.env`; set in Vercel production)
 - `BETTER_AUTH_URL` — app origin for Better Auth callbacks/redirects (`http://localhost:3000` locally; production URL on Vercel)
+- `GEMINI_API_KEY` / `GOOGLE_API_KEY` — Gemini API key for embeddings (`src/lib/ai.ts` falls back between the two)
+- `GEMINI_EMBEDDING_MODEL` — embedding model id (default `gemini-embedding-001`, 768 dims)
+- `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` — Cloudflare R2 (S3 API) for file sources
+- `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY` — Inngest cloud keys (optional for dev); `INNGEST_DEV=1` for local dev server
 
 ## API Endpoints
 - `GET/POST /api/auth/*` — Better Auth endpoints (sign-up, sign-in, sign-out, get-session, etc.)
@@ -67,8 +91,13 @@
 - `POST /api/workspaces/:id/projects` — create a project `{ name }` (auth + membership)
 - `GET /api/projects/:id/knowledge-bases` — list KBs for a project (tenancy-guarded)
 - `POST /api/projects/:id/knowledge-bases` — create a KB `{ name }` (tenancy-guarded)
-- `PUT /api/knowledge-bases/:id` — rename a KB `{ name }` (tenancy-guarded)
-- `DELETE /api/knowledge-bases/:id` — delete a KB (tenancy-guarded, cascades)
+- `PUT /api/knowledge-bases/:kbId` — rename a KB `{ name }` (tenancy-guarded)
+- `DELETE /api/knowledge-bases/:kbId` — delete a KB (tenancy-guarded, cascades)
+- `GET /api/knowledge-bases/:kbId/sources` — list sources (tenancy-guarded)
+- `POST /api/knowledge-bases/:kbId/sources` — create source `{ kind: 'text', content, name }` or `{ kind: 'url', url, name }`; enqueues `knowledge-source.created` (tenancy-guarded)
+- `POST /api/knowledge-bases/:kbId/sources/upload` — multipart `file` (PDF/TXT/MD/MARKDOWN) → R2; enqueues ingestion (tenancy-guarded)
+- `DELETE /api/sources/:id` — delete source (removes R2 object if file, cascades chunks; tenancy-guarded)
+- `GET/POST/PUT /api/inngest` — Inngest serve handler (dev + prod)
 
 ## Deployments
 - Vercel project: `autosupport` (scope `ashutsoh1729s-projects`)
