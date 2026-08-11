@@ -4,8 +4,8 @@
 
 ## Current Status
 - Milestone: M2 Knowledge Base + Projects (in progress)
-- Completed plans: M1 all (`01-project-scaffold`, `02-database-schema`, `03-authentication`, `04-workspace-dashboard`), M2 `01-project-crud`, `02-knowledge-base-crud`, `03-source-ingestion`, `04-retrieval-test-panel` (all archived)
-- Next plan: M2 `05-dashboard-ui`
+- Completed plans: M1 all (`01-project-scaffold`, `02-database-schema`, `03-authentication`, `04-workspace-dashboard`), M2 all (`01-project-crud`, `02-knowledge-base-crud`, `03-source-ingestion`, `04-retrieval-test-panel`, `05-dashboard-ui`) — all archived
+- Next plan: M3 `01-agent-builder`
 
 ## Key Files
 - `src/app/page.tsx` — landing page (server component)
@@ -13,7 +13,7 @@
 - `src/app/globals.css` — Tailwind v4 entry + theme
 - `src/app/login/page.tsx` + `src/app/login/login-form.tsx` — sign-in page + client form (in `(auth)` route group)
 - `src/app/signup/page.tsx` + `src/app/signup/signup-form.tsx` — sign-up page + client form (in `(auth)` route group)
-- `src/app/dashboard/page.tsx` — protected dashboard showing workspace + projects (in `(product)` route group)
+- `src/app/(product)/dashboard/page.tsx` — protected dashboard: `SidebarProvider` + `DashboardSidebar` wrapping `SidebarInset` (project list + "New Project" dialog), shows workspace + signed-in email (in `(product)` route group)
 - `src/app/api/auth/[...all]/route.ts` — Better Auth route handler
 - `src/app/api/workspaces/[workspaceId]/projects/route.ts` — GET/POST projects (membership-guarded)
 - `src/app/api/projects/[projectId]/knowledge-bases/route.ts` — GET/POST knowledge bases (tenancy-guarded)
@@ -39,23 +39,29 @@
 - `src/lib/db/auth-schema.ts` — Better Auth tables: `user`, `session`, `account`, `verification` (CLI-generated)
 - `drizzle.config.ts` — drizzle-kit config (Neon Postgres; schema list includes auth-schema)
 - `drizzle/` — generated migrations (0000 initial, 0001 auth, 0002 projects, 0003 knowledge_bases, 0004 sources + chunks)
+- `components.json` — shadcn/ui config (radix-nova style, neutral base, `@/` aliases)
+- `src/lib/utils.ts` — `cn()` Tailwind class-merge helper (clsx + tailwind-merge)
+- `src/components/ui/` — shadcn components: `sidebar.tsx`, `dialog.tsx`, `button.tsx`, `input.tsx`, `separator.tsx`, `sheet.tsx`, `tooltip.tsx`, `skeleton.tsx`
+- `src/hooks/use-mobile.ts` — `useIsMobile` matchMedia hook (shadcn sidebar dependency)
+- `src/components/dashboard-sidebar.tsx` — client sidebar (workspace header, projects nav, sign-out)
 - `.env.example` — env template (`DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `GEMINI_*`, `R2_*`, `INNGEST_*`)
 - `docs/spec.md` — product specification + milestones
 - `docs/plan/m1-foundations/` — archived M1 plans
-- `docs/plan/m2-knowledge-base/` — M2 plans (01–04 archived; 05 pending)
+- `docs/plan/m2-knowledge-base/` — M2 plans (01–05 archived in `archive/`; active tracking in `TODO.md`)
 
 ## Key Functions Summary
 - `Home` (`src/app/page.tsx`) — renders the branded landing page
 - `LoginForm` (`src/app/login/login-form.tsx`) — calls `authClient.signIn.email`, redirects to `/dashboard`
 - `SignupForm` (`src/app/signup/signup-form.tsx`) — calls `authClient.signUp.email`, redirects to `/dashboard`
-- `DashboardPage` (`src/app/(product)/dashboard/page.tsx`) — `auth.api.getSession` guard + `getOrCreateWorkspace` (creates default workspace on the fly), queries + renders workspace projects, renders workspace name + email
+- `DashboardPage` (`src/app/(product)/dashboard/page.tsx`) — `auth.api.getSession` guard + `getOrCreateWorkspace` (creates default workspace on the fly), queries projects + workspace name, renders `SidebarProvider` layout with sidebar (workspace name + project nav) and main inset (project list + New Project dialog)
+- `DashboardSidebar` (`src/components/dashboard-sidebar.tsx`) — client sidebar: AutoSupport + workspace header, "Projects" nav (links to project detail), `SignOutButton` footer
+- `NewProjectForm` (`src/components/new-project-form.tsx`) — shadcn `Dialog` modal; POSTs name to the projects API, closes + `router.refresh()` on success, error shown inside dialog
 - `auth` (`src/lib/auth.ts`) — Better Auth instance (Drizzle adapter, email/password, `databaseHooks.user.create.after` signup hook creating workspace + membership + default project, `baseURL`)
 - `authClient` (`src/lib/auth-client.ts`) — browser-side auth client
 - `db`, `pool` (`src/lib/db.ts`) — Drizzle client + `pg` Pool singleton
 - `workspaces`, `memberships`, `projects`, `knowledgeBases` + type exports (`src/lib/db/schema.ts`) — table definitions
 - `user`, `session`, `account`, `verification` (`src/lib/db/auth-schema.ts`) — Better Auth tables (CLI-generated)
-- `SignOutButton` (`src/components/sign-out-button.tsx`) — client sign-out control in dashboard header
-- `NewProjectForm` (`src/components/new-project-form.tsx`) — client form creating a project via the projects API + `router.refresh()`
+- `SignOutButton` (`src/components/sign-out-button.tsx`) — client sign-out control in sidebar footer
 - `GET/POST projects` handlers (`src/app/api/workspaces/[workspaceId]/projects/route.ts`) — list/create projects with session + membership guard
 - `requireProjectAccess` / `requireKnowledgeBaseAccess` (`src/lib/tenancy.ts`) — resolve project/KB → workspace → membership, 401/403/404
 - `GET/POST knowledge-bases` handlers (`src/app/api/projects/[projectId]/knowledge-bases/route.ts`) — list/create KBs (tenancy-guarded)
@@ -83,6 +89,7 @@
 - `drizzle-orm`, `pg`, `better-auth`
 - `inngest` ^4, `ai` ^7, `@ai-sdk/google`, `@ai-sdk/openai-compatible`, `@aws-sdk/client-s3`, `pdf-parse` ^2
 - dev: `drizzle-kit`, `@types/pg`, `tailwindcss` ^4, `@tailwindcss/postcss`, `typescript` ^5, `eslint` ^9, `eslint-config-next` 16.3.0
+- UI: `class-variance-authority`, `clsx`, `tailwind-merge`, `lucide-react`, `radix-ui` (unified), `tw-animate-css` (shadcn/ui via `shadcn` CLI; `components.json`)
 
 ## Environment Variables
 - `DATABASE_URL` — Neon Postgres connection string (set locally in `.env`; set in Vercel production)

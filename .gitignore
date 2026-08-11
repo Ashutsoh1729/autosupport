@@ -43,3 +43,7 @@ next-env.d.ts
 
 # private brainstorming notes
 docs/notes/whiteboard.md
+test/
+
+# mprocs
+mprocs.log

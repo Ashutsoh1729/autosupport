@@ -29,9 +29,9 @@ The product is built to demonstrate a complete, production-minded voice AI platf
 
 ## 5. Core User Flows
 
-1. **Sign up** → create an account and a default workspace.
-2. **Build a knowledge base** → upload files (PDF/TXT/MD), add raw text, or import a URL; the system chunks and indexes it.
-3. **Create an agent** → set a name, system prompt/personality, guardrails, select a voice + language, and attach one or more knowledge bases.
+1. **Sign up** → create an account, a default workspace, and a default project.
+2. **Build a knowledge base** (within a project) → upload files (PDF/TXT/MD), add raw text, or import a URL; the system chunks and indexes it.
+3. **Create an agent** (within a project) → set a name, system prompt/personality, guardrails, select a voice + language, and attach one or more knowledge bases.
 4. **Test the agent** → open the test console, press call, and converse via browser mic/speaker.
 5. **Deploy (stretch)** → get a phone number or embeddable widget link.
 6. **Review** → view call history, transcripts, recordings, and simple analytics.
@@ -41,13 +41,13 @@ The product is built to demonstrate a complete, production-minded voice AI platf
 ### 6.1 Accounts & Workspaces
 
 - Email/password auth (Better Auth), optional social login (Google) later.
-- Each user gets a workspace; agents and knowledge bases belong to a workspace (multi-tenant isolation).
+- Each user gets a workspace; a workspace contains one or more projects; each project bundles one agent + its knowledge bases (multi-tenant isolation at workspace level).
 - Members (future): invite + role scoping.
 
 ### 6.2 Knowledge Base Engine
 
 - Sources: text input, file upload (PDF, TXT, MD; DOCX later), public URL import.
-- Pipeline: extract → chunk → embed → store in vector DB (pgvector) with workspace isolation.
+- Pipeline: extract → chunk → embed → store in vector DB (pgvector) with project/workspace isolation.
 - Per-source status: queued → processing → ready | failed.
 - Test panel: ask a question and see retrieved chunks + answer.
 
@@ -88,7 +88,10 @@ The product is built to demonstrate a complete, production-minded voice AI platf
 | STT              | Deepgram (free credits)                                  |
 | TTS              | Deepgram / ElevenLabs                                    |
 | LLM              | DeepSeek (primary) / Gemini Flash, swap-able             |
-| Embeddings       | OpenAI / Cohere / Gemini                                 |
+| Embeddings       | Gemini (`text-embedding-004`), swap-able                 |
+| AI SDK           | Vercel AI SDK (provider-agnostic LLM + embeddings)       |
+| Object storage   | Cloudflare R2 (uploaded files, free tier)                |
+| Background jobs  | Inngest (chunk+embed pipeline, free tier)                |
 | Deploy           | Vercel free tier; Neon free tier for DB                  |
 
 ## 8. High-Level Architecture
@@ -104,12 +107,15 @@ The product is built to demonstrate a complete, production-minded voice AI platf
                              │
 [Next.js App] ── REST ──▶ [API routes] ──▶ [Postgres]
   dashboard/builder            │
-                     [Background jobs: chunk+embed]
+                     [Inngest jobs: chunk+embed]
+                              │
+                     [Gemini embeddings]
+                              │
+                     [Cloudflare R2: raw files]
 ```
-
 - The Next.js app serves the dashboard and admin API.
 - The voice agent worker bridges WebRTC audio to the STT → RAG → LLM → TTS loop.
-- Knowledge base ingestion runs as a background job.
+- Knowledge base ingestion runs as an Inngest background job: file uploads land in R2, the job extracts → chunks → embeds (Gemini) → writes to pgvector.
 
 ## 9. Data Model (Initial)
 
@@ -117,36 +123,40 @@ Better Auth manages auth tables via its Drizzle adapter: `user`, `session`, `acc
 
 - `workspaces` — id, name, createdAt
 - `memberships` — workspaceId, userId, role (owner/member)
-- `knowledge_bases` — id, workspaceId, name, createdAt
-- `knowledge_sources` — id, kbId, type (text|file|url), status, contentRef
+- `projects` — id, workspaceId, name, createdAt
+- `knowledge_bases` — id, projectId, name, createdAt
+- `knowledge_sources` — id, kbId, type (text|file|url), status, contentRef (R2 object key for files / text / fetched URL)
 - `chunks` — id, sourceId, index, content, embedding (vector), kbId
-- `agents` — id, workspaceId, name, systemPrompt, guardrails, voiceId, language, kbIds, status (draft|published)
+- `agents` — id, projectId, name, systemPrompt, guardrails, voiceId, language, kbIds, status (draft|published)
 - `calls` — id, workspaceId, agentId, status, startedAt, endedAt, durationMs, transcriptJson, recordingUrl (optional), summary
 
 ## 10. API Surface (High Level)
 
 - `POST /api/auth/*`
 - `GET/POST /api/workspaces`
-- `GET/POST/PUT/DELETE /api/knowledge-bases`
+- `GET/POST /api/workspaces/:id/projects`
+- `GET/POST /api/projects/:id/knowledge-bases` ; `PUT/DELETE /api/knowledge-bases/:id`
 - `GET/POST /api/knowledge-bases/:id/sources` (upload/text/url)
-- `GET/POST /api/agents` ; `PUT /api/agents/:id` ; `POST /api/agents/:id/publish`
+- `GET/POST /api/projects/:id/agents` ; `PUT /api/agents/:id` ; `POST /api/agents/:id/publish`
 - `POST /api/agents/:id/test-token` (issue short-lived voice session token)
 - `GET /api/calls` ; `GET /api/calls/:id`
-- `POST /api/agents/:id/query` (text Q&A against KB for test panel)
+- `POST /api/knowledge-bases/:id/query` (text Q&A against KB for test panel)
 
 ## 11. Free-Tier Constraints & Demo Budget
 
 - LiveKit Build: 1,000 agent minutes/mo, 5 concurrent sessions — plenty for a demo.
 - Deepgram: $200 starter credits.
 - LLM/embeddings: free-tier quotas (DeepSeek credits / Gemini Flash).
+- Cloudflare R2: 10GB free storage, no egress fees — plenty for demo files.
+- Inngest: free tier covers dev + low-volume demo ingestion.
 - Browser-widget voice avoids all telephony cost.
 - Design the test console so a 2–5 minute call fully demonstrates the product.
 
 ## 12. MVP Scope (Milestones)
 
-1. **M1 — Foundations**: Next.js app, auth, workspace, DB schema, deployable on Vercel.
-2. **M2 — Knowledge Base**: text/upload ingestion, chunking, embedding, retrieval, KB test panel.
-3. **M3 — Agent Builder**: agent CRUD, prompt/guardrails/voice config, publish.
+1. **M1 — Foundations**: Next.js app, auth, workspace, project, DB schema, deployable on Vercel.
+2. **M2 — Knowledge Base + Projects**: project CRUD, text/upload ingestion, chunking, embedding, retrieval, KB test panel. *(Implements: Vercel AI SDK `embed`/`embedMany` for embedding, LLM via AI SDK for the test-panel answer.)*
+3. **M3 — Agent Builder**: agent CRUD (per project), prompt/guardrails/voice config, publish.
 4. **M4 — Voice Runtime**: LiveKit browser call end-to-end (STT→RAG→LLM→TTS), test console.
 5. **M5 — Analytics**: call persistence, transcripts, recordings, dashboard.
 6. **M6 (Stretch)**: inbound phone number, widget embed, members.
