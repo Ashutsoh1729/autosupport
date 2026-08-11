@@ -36,10 +36,6 @@ export default async function KnowledgeBaseDetailPage({
     .where(eq(knowledgeSources.kbId, kbId))
     .orderBy(asc(knowledgeSources.createdAt));
 
-  const testPanelEnabled =
-    process.env.NODE_ENV !== "production" ||
-    process.env.ENABLE_TEST_PANEL === "true";
-
   const statusStyles: Record<string, string> = {
     queued: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
     processing:
@@ -77,14 +73,6 @@ export default async function KnowledgeBaseDetailPage({
             <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
               Sources are ingested into the knowledge base in the background.
             </p>
-            {testPanelEnabled && (
-              <Link
-                href={`/dashboard/projects/${projectId}/knowledge-bases/${kbId}/test`}
-                className="mt-3 inline-block rounded-md border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
-              >
-                Test chat
-              </Link>
-            )}
           </div>
 
           <SourceForms kbId={kb.id} />

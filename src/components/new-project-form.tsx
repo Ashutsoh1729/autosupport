@@ -2,9 +2,22 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 export function NewProjectForm({ workspaceId }: { workspaceId: string }) {
   const router = useRouter();
+  const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -33,6 +46,7 @@ export function NewProjectForm({ workspaceId }: { workspaceId: string }) {
       }
 
       setName("");
+      setOpen(false);
       router.refresh();
     } finally {
       setSubmitting(false);
@@ -40,22 +54,41 @@ export function NewProjectForm({ workspaceId }: { workspaceId: string }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex items-center gap-2">
-      <input
-        type="text"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="Project name"
-        className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-      />
-      <button
-        type="submit"
-        disabled={submitting || !name.trim()}
-        className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-300"
-      >
-        {submitting ? "Creating…" : "New Project"}
-      </button>
-      {error && <span className="text-sm text-red-600">{error}</span>}
-    </form>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button>New Project</Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>New Project</DialogTitle>
+          <DialogDescription>
+            Create a project to bundle an agent with its knowledge bases.
+          </DialogDescription>
+        </DialogHeader>
+        <form id="new-project-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <Input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Project name"
+            autoFocus
+            aria-invalid={error ? true : undefined}
+          />
+          {error && <p className="text-sm text-destructive">{error}</p>}
+        </form>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline">Cancel</Button>
+          </DialogClose>
+          <Button
+            type="submit"
+            form="new-project-form"
+            disabled={submitting || !name.trim()}
+          >
+            {submitting ? "Creating…" : "Create Project"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -1,0 +1,117 @@
+<mxfile host="app.diagrams.net">
+  <diagram id="architecture" name="Architecture">
+    <mxGraphModel dx="1400" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1160" pageHeight="780" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="endCustomer" value="End Customer&#10;(browser voice call)" style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="180" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="owner" value="Business Owner&#10;(browser dashboard)" style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="420" y="40" width="180" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="livkit" value="Voice Runtime (LiveKit)" style="swimlane;startSize=28;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="20" y="150" width="380" height="320" as="geometry" />
+        </mxCell>
+        <mxCell id="room" value="LiveKit Room&#10;(WebRTC)" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="livkit">
+          <mxGeometry x="100" y="45" width="180" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="worker" value="Voice Agent Worker" style="swimlane;startSize=24;whiteSpace=wrap;html=1;fillColor=#e5f0e5;strokeColor=#82b366;fontStyle=1;horizontal=1;" vertex="1" parent="livkit">
+          <mxGeometry x="30" y="145" width="320" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="stt" value="STT" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="worker">
+          <mxGeometry x="8" y="42" width="66" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="rag" value="RAG&#10;Retrieval" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="worker">
+          <mxGeometry x="86" y="42" width="66" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="llm" value="LLM" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="worker">
+          <mxGeometry x="164" y="42" width="66" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="tts" value="TTS" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="worker">
+          <mxGeometry x="242" y="42" width="66" height="55" as="geometry" />
+        </mxCell>
+
+        <mxCell id="nextjs" value="Next.js App (Vercel)" style="swimlane;startSize=28;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;horizontal=1;" vertex="1" parent="1">
+          <mxGeometry x="420" y="150" width="720" height="320" as="geometry" />
+        </mxCell>
+        <mxCell id="dashboard" value="Dashboard &amp; Builder" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="nextjs">
+          <mxGeometry x="30" y="45" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="api" value="API Routes (REST)" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="nextjs">
+          <mxGeometry x="265" y="45" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="jobs" value="Background Jobs&#10;(chunk + embed)" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="nextjs">
+          <mxGeometry x="500" y="45" width="190" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="dataZone" value="Data &amp; AI Providers" style="swimlane;startSize=28;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;horizontal=1;" vertex="1" parent="1">
+          <mxGeometry x="20" y="510" width="1120" height="210" as="geometry" />
+        </mxCell>
+        <mxCell id="postgres" value="Postgres&#10;(Neon)" style="shape=cylinder3;whiteSpace=wrap;html=1;fontStyle=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="dataZone">
+          <mxGeometry x="40" y="50" width="150" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="pgvector" value="pgvector&#10;(Vector DB)" style="shape=cylinder3;whiteSpace=wrap;html=1;fontStyle=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="dataZone">
+          <mxGeometry x="240" y="50" width="150" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="deepgram" value="Deepgram&#10;(STT + TTS)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="dataZone">
+          <mxGeometry x="440" y="50" width="150" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="llmProvider" value="DeepSeek / Gemini&#10;(LLM)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="dataZone">
+          <mxGeometry x="640" y="50" width="150" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="embProvider" value="Embeddings&#10;(OpenAI/Cohere/Gemini)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="dataZone">
+          <mxGeometry x="840" y="50" width="170" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_web" value="WebRTC" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#82b366;strokeWidth=2;" edge="1" source="endCustomer" target="room" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_audio" value="audio" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#82b366;" edge="1" source="room" target="worker" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_pipe1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" source="stt" target="rag" parent="worker">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_pipe2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" source="rag" target="llm" parent="worker">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_pipe3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" source="llm" target="tts" parent="worker">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_ragdb" value="retrieve (KB)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;startArrow=classic;startFill=1;strokeColor=#82b366;" edge="1" source="rag" target="pgvector" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_rest" value="REST / HTTPS" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#6c8ebf;strokeWidth=2;" edge="1" source="owner" target="api" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_dashapi" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" source="dashboard" target="api" parent="nextjs">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_apipg" value="SQL" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#6c8ebf;" edge="1" source="api" target="postgres" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_apivector" value="test-panel Q&amp;A" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;strokeColor=#6c8ebf;" edge="1" source="api" target="pgvector" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_jobsemb" value="embed chunks" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#6c8ebf;" edge="1" source="jobs" target="embProvider" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_embdb" value="store vectors" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#6c8ebf;" edge="1" source="embProvider" target="pgvector" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_sttdg" value="audio to text" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;strokeColor=#d6b656;" edge="1" source="stt" target="deepgram" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_llmprov" value="prompt to answer" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;strokeColor=#d6b656;" edge="1" source="llm" target="llmProvider" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_ttsdg" value="text to speech" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;strokeColor=#d6b656;" edge="1" source="tts" target="deepgram" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

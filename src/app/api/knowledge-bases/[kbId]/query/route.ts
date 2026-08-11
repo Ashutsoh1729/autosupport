@@ -10,9 +10,9 @@ const SYSTEM_PROMPT = `You are AutoSupport, a support assistant. Answer the user
 
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ kbId: string }> },
 ) {
-  const { id: kbId } = await params;
+  const { kbId } = await params;
 
   if (!isValidUuid(kbId)) {
     return NextResponse.json(
