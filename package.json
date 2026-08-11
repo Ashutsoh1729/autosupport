@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.36",
+    "@ai-sdk/openai-compatible": "^3.0.28",
     "@aws-sdk/client-s3": "^3.1104.0",
     "ai": "^7.0.55",
     "better-auth": "^1.6.25",

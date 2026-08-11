@@ -1,4 +1,5 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { embed, embedMany } from "ai";
 
 const google = createGoogleGenerativeAI({
@@ -8,6 +9,22 @@ const google = createGoogleGenerativeAI({
 export const embeddingModel = google.textEmbeddingModel(
   process.env.GEMINI_EMBEDDING_MODEL ?? "gemini-embedding-001",
 );
+
+/**
+ * Chat model for grounded answers. Provider-agnostic: when OpenRouter
+ * credentials are configured the model routes via OpenRouter's
+ * OpenAI-compatible endpoint, otherwise it uses Gemini. Swap either by
+ * changing env vars only (no code changes).
+ */
+export const chatModel =
+  process.env.OPENROUTER_API_KEY && process.env.OPENROUTER_MODEL
+    ? createOpenAICompatible({
+        name: "openrouter",
+        baseURL:
+          process.env.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1",
+        apiKey: process.env.OPENROUTER_API_KEY,
+      }).chatModel(process.env.OPENROUTER_MODEL)
+    : google.languageModel(process.env.GEMINI_CHAT_MODEL ?? "gemini-2.5-flash");
 
 const EMBEDDING_DIMENSIONS = 768;
 

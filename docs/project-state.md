@@ -4,8 +4,8 @@
 
 ## Current Status
 - Milestone: M2 Knowledge Base + Projects (in progress)
-- Completed plans: M1 all (`01-project-scaffold`, `02-database-schema`, `03-authentication`, `04-workspace-dashboard`), M2 `01-project-crud`, `02-knowledge-base-crud`, `03-source-ingestion` (all archived)
-- Next plan: M2 `04-retrieval-test-panel`
+- Completed plans: M1 all (`01-project-scaffold`, `02-database-schema`, `03-authentication`, `04-workspace-dashboard`), M2 `01-project-crud`, `02-knowledge-base-crud`, `03-source-ingestion`, `04-retrieval-test-panel` (all archived)
+- Next plan: M2 `05-dashboard-ui`
 
 ## Key Files
 - `src/app/page.tsx` — landing page (server component)
@@ -23,10 +23,13 @@
 - `src/app/api/knowledge-bases/[kbId]/sources/upload/route.ts` — multipart file upload (PDF/TXT/MD → R2)
 - `src/app/api/sources/[id]/route.ts` — DELETE source (removes R2 object for file type)
 - `src/app/api/inngest/route.ts` — Inngest serve handler (GET/POST/PUT)
+- `src/app/api/knowledge-bases/[id]/query/route.ts` — POST query: guarded retrieval + grounded LLM answer (chatbot backend, not gated)
 - `src/app/(product)/dashboard/projects/[projectId]/page.tsx` — project detail / KB manager page
 - `src/app/(product)/dashboard/projects/[projectId]/knowledge-bases/[kbId]/page.tsx` — KB detail / sources page
+- `src/app/(product)/dashboard/projects/[projectId]/knowledge-bases/[kbId]/test/page.tsx` — test panel page (gated by `ENABLE_TEST_PANEL`; force-dynamic)
 - `src/lib/tenancy.ts` — `requireProjectAccess` / `requireKnowledgeBaseAccess` multi-tenant guards
-- `src/lib/ai.ts` — Gemini embedding model (`gemini-embedding-001`, 768 dims via `providerOptions.google.outputDimensionality`) + `embedTexts`/`embedText`
+- `src/lib/retrieval.ts` — `retrieveChunks` (embed + pgvector top-K), `isValidUuid`, `clampTopK`
+- `src/lib/ai.ts` — Gemini embedding model (`gemini-embedding-001`, 768 dims via `providerOptions.google.outputDimensionality`) + `embedTexts`/`embedText`; provider-agnostic `chatModel` (Gemini default / OpenRouter)
 - `src/lib/inngest.ts` — Inngest client + `chunkSource` job (extract → chunk → embed → store) + `chunkText`/`extractSourceText` + `sendKnowledgeSourceCreated`
 - `src/lib/r2.ts` — R2 upload/get/remove + `sourceObjectKey`
 - `src/lib/db.ts` — Drizzle `db` singleton over a `pg` Pool
@@ -39,7 +42,7 @@
 - `.env.example` — env template (`DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `GEMINI_*`, `R2_*`, `INNGEST_*`)
 - `docs/spec.md` — product specification + milestones
 - `docs/plan/m1-foundations/` — archived M1 plans
-- `docs/plan/m2-knowledge-base/` — M2 plans (01, 02, 03 archived)
+- `docs/plan/m2-knowledge-base/` — M2 plans (01–04 archived; 05 pending)
 
 ## Key Functions Summary
 - `Home` (`src/app/page.tsx`) — renders the branded landing page
@@ -61,19 +64,24 @@
 - `POST sources/upload` handler (`src/app/api/knowledge-bases/[kbId]/sources/upload/route.ts`) — multipart file upload (PDF/TXT/MD → R2, `sourceObjectKey`), enqueues Inngest
 - `DELETE source` handler (`src/app/api/sources/[id]/route.ts`) — delete source; removes R2 object for file type, cascades chunks
 - `ProjectDetailPage` (`src/app/(product)/dashboard/projects/[projectId]/page.tsx`) — KB manager page (KB names link to detail page)
-- `KnowledgeBaseDetailPage` (`…/knowledge-bases/[kbId]/page.tsx`) — lists sources with status badges + add/delete controls
+- `KnowledgeBaseDetailPage` (`…/knowledge-bases/[kbId]/page.tsx`) — lists sources with status badges + add/delete controls + gated "Test chat" link
+- `KnowledgeBaseTestPage` (`…/knowledge-bases/[kbId]/test/page.tsx`) — gated server wrapper rendering `TestPanel` (force-dynamic, `notFound()` in prod unless `ENABLE_TEST_PANEL=true`)
 - `NewKnowledgeBaseForm` / `KnowledgeBaseRowActions` (`src/components/knowledge-base-forms.tsx`) — create/rename/delete KB client controls
 - `SourceForms` / `SourceRowActions` (`src/components/source-forms.tsx`) — text/URL/file source forms + delete control
+- `TestPanel` (`src/components/test-panel.tsx`) — client ask-and-show panel (question + topK → answer + retrieved chunks)
 - `chunkSource` (`src/lib/inngest.ts`) — Inngest fn: `load-source` → `mark-processing` → `extract-text` → `chunk-text` → `embed-chunks` → `store-chunks` → `mark-ready`, catch → `mark-failed` (id `process/knowledge-source`, trigger `knowledge-source.created`)
 - `chunkText` (`src/lib/inngest.ts`) — ~500-char chunks, 100 overlap, newline/space boundaries
 - `extractSourceText` (`src/lib/inngest.ts`) — text inline, URL via fetch + `stripHtml`, file via R2 + `pdf-parse`
 - `embedTexts` / `embedText` (`src/lib/ai.ts`) — Gemini `embedMany`/`embed` wrappers with `outputDimensionality: 768`
+- `chatModel` (`src/lib/ai.ts`) — LLM for grounded answers; Gemini `languageModel` (`GEMINI_CHAT_MODEL`, default `gemini-2.5-flash`) or OpenRouter OpenAI-compatible chat model when `OPENROUTER_API_KEY` + `OPENROUTER_MODEL` are set
+- `retrieveChunks` / `isValidUuid` / `clampTopK` (`src/lib/retrieval.ts`) — embed query + pgvector `<=>` cosine search scoped to `kbId`, topK default 5 clamp 1–10
+- `POST query` handler (`src/app/api/knowledge-bases/[id]/query/route.ts`) — tenancy-guarded retrieval + `generateText` grounded answer; returns `{ answer, chunks }`
 - `uploadToR2` / `getFromR2` / `removeFromR2` (`src/lib/r2.ts`) — R2 object storage (S3 API)
 
 ## Dependencies
 - `next` 16.3.0, `react` 19.2.8, `react-dom` 19.2.8
 - `drizzle-orm`, `pg`, `better-auth`
-- `inngest` ^4, `ai` ^7, `@ai-sdk/google`, `@aws-sdk/client-s3`, `pdf-parse` ^2
+- `inngest` ^4, `ai` ^7, `@ai-sdk/google`, `@ai-sdk/openai-compatible`, `@aws-sdk/client-s3`, `pdf-parse` ^2
 - dev: `drizzle-kit`, `@types/pg`, `tailwindcss` ^4, `@tailwindcss/postcss`, `typescript` ^5, `eslint` ^9, `eslint-config-next` 16.3.0
 
 ## Environment Variables
@@ -82,6 +90,9 @@
 - `BETTER_AUTH_URL` — app origin for Better Auth callbacks/redirects (`http://localhost:3000` locally; production URL on Vercel)
 - `GEMINI_API_KEY` / `GOOGLE_API_KEY` — Gemini API key for embeddings (`src/lib/ai.ts` falls back between the two)
 - `GEMINI_EMBEDDING_MODEL` — embedding model id (default `gemini-embedding-001`, 768 dims)
+- `GEMINI_CHAT_MODEL` — Gemini chat model for grounded answers (default `gemini-2.5-flash`)
+- `OPENROUTER_API_KEY` / `OPENROUTER_MODEL` / `OPENROUTER_BASE_URL` — optional: route the chat model through OpenRouter (OpenAI-compatible) instead of Gemini
+- `ENABLE_TEST_PANEL` — local-only flag to enable the gated test panel UI in prod-like builds (never set in Vercel prod env)
 - `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` — Cloudflare R2 (S3 API) for file sources
 - `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY` — Inngest cloud keys (optional for dev); `INNGEST_DEV=1` for local dev server
 
@@ -97,6 +108,7 @@
 - `POST /api/knowledge-bases/:kbId/sources` — create source `{ kind: 'text', content, name }` or `{ kind: 'url', url, name }`; enqueues `knowledge-source.created` (tenancy-guarded)
 - `POST /api/knowledge-bases/:kbId/sources/upload` — multipart `file` (PDF/TXT/MD/MARKDOWN) → R2; enqueues ingestion (tenancy-guarded)
 - `DELETE /api/sources/:id` — delete source (removes R2 object if file, cascades chunks; tenancy-guarded)
+- `POST /api/knowledge-bases/:kbId/query` — embed question, pgvector retrieval, grounded answer `{ answer, chunks }` (tenancy-guarded, not gated)
 - `GET/POST/PUT /api/inngest` — Inngest serve handler (dev + prod)
 
 ## Deployments
