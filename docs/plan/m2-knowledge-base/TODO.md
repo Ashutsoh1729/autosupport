@@ -18,9 +18,9 @@
 - [x] Restructure `src/app/(product)/dashboard/page.tsx` into sidebar layout; keep project list + empty state in main inset
 - [x] `npm run build` passes; update plan checkboxes; append Execution Notes
 - [x] Archive `05-dashboard-ui.md`; update `docs/project-state.md`
+- [x] **Post-Testing Cleanup**: removed test panel UI — deleted `src/components/test-panel.tsx` and the `[kbId]/test` route, removed the "Test chat" link + `ENABLE_TEST_PANEL` gate from the KB detail page, dropped the env var from `.env.example`/docs, and narrowed the `test/` gitignore to root-only (`/test/`) so it no longer shadows app routes. Kept the `POST /api/knowledge-bases/[kbId]/query` chatbot backend + retrieval lib.
 - [ ] **ACTION: user merges PR** (dashboard UI PR on `plan/05-dashboard-ui`)
 
 ## General notes
 - Branch strategy: each plan on `plan/<name>`; branch from main AFTER the PR for the prior plan is merged (user merges).
-- `test/` dir is gitignored (sample sources for ingestion/retrieval).
-- `ENABLE_TEST_PANEL` is local-only; never set in Vercel prod env.
+- Root `/test/` dir is gitignored (sample sources for ingestion/retrieval).

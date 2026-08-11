@@ -43,7 +43,9 @@ next-env.d.ts
 
 # private brainstorming notes
 docs/notes/whiteboard.md
-test/
+
+# local-only sample sources (ingestion/retrieval testing)
+/test/
 
 # mprocs
 mprocs.log

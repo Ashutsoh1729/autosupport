@@ -23,10 +23,9 @@
 - `src/app/api/knowledge-bases/[kbId]/sources/upload/route.ts` — multipart file upload (PDF/TXT/MD → R2)
 - `src/app/api/sources/[id]/route.ts` — DELETE source (removes R2 object for file type)
 - `src/app/api/inngest/route.ts` — Inngest serve handler (GET/POST/PUT)
-- `src/app/api/knowledge-bases/[id]/query/route.ts` — POST query: guarded retrieval + grounded LLM answer (chatbot backend, not gated)
+- `src/app/api/knowledge-bases/[kbId]/query/route.ts` — POST query: guarded retrieval + grounded LLM answer (chatbot backend, not gated)
 - `src/app/(product)/dashboard/projects/[projectId]/page.tsx` — project detail / KB manager page
 - `src/app/(product)/dashboard/projects/[projectId]/knowledge-bases/[kbId]/page.tsx` — KB detail / sources page
-- `src/app/(product)/dashboard/projects/[projectId]/knowledge-bases/[kbId]/test/page.tsx` — test panel page (gated by `ENABLE_TEST_PANEL`; force-dynamic)
 - `src/lib/tenancy.ts` — `requireProjectAccess` / `requireKnowledgeBaseAccess` multi-tenant guards
 - `src/lib/retrieval.ts` — `retrieveChunks` (embed + pgvector top-K), `isValidUuid`, `clampTopK`
 - `src/lib/ai.ts` — Gemini embedding model (`gemini-embedding-001`, 768 dims via `providerOptions.google.outputDimensionality`) + `embedTexts`/`embedText`; provider-agnostic `chatModel` (Gemini default / OpenRouter)
@@ -70,18 +69,16 @@
 - `POST sources/upload` handler (`src/app/api/knowledge-bases/[kbId]/sources/upload/route.ts`) — multipart file upload (PDF/TXT/MD → R2, `sourceObjectKey`), enqueues Inngest
 - `DELETE source` handler (`src/app/api/sources/[id]/route.ts`) — delete source; removes R2 object for file type, cascades chunks
 - `ProjectDetailPage` (`src/app/(product)/dashboard/projects/[projectId]/page.tsx`) — KB manager page (KB names link to detail page)
-- `KnowledgeBaseDetailPage` (`…/knowledge-bases/[kbId]/page.tsx`) — lists sources with status badges + add/delete controls + gated "Test chat" link
-- `KnowledgeBaseTestPage` (`…/knowledge-bases/[kbId]/test/page.tsx`) — gated server wrapper rendering `TestPanel` (force-dynamic, `notFound()` in prod unless `ENABLE_TEST_PANEL=true`)
+- `KnowledgeBaseDetailPage` (`…/knowledge-bases/[kbId]/page.tsx`) — lists sources with status badges + add/delete controls
 - `NewKnowledgeBaseForm` / `KnowledgeBaseRowActions` (`src/components/knowledge-base-forms.tsx`) — create/rename/delete KB client controls
 - `SourceForms` / `SourceRowActions` (`src/components/source-forms.tsx`) — text/URL/file source forms + delete control
-- `TestPanel` (`src/components/test-panel.tsx`) — client ask-and-show panel (question + topK → answer + retrieved chunks)
 - `chunkSource` (`src/lib/inngest.ts`) — Inngest fn: `load-source` → `mark-processing` → `extract-text` → `chunk-text` → `embed-chunks` → `store-chunks` → `mark-ready`, catch → `mark-failed` (id `process/knowledge-source`, trigger `knowledge-source.created`)
 - `chunkText` (`src/lib/inngest.ts`) — ~500-char chunks, 100 overlap, newline/space boundaries
 - `extractSourceText` (`src/lib/inngest.ts`) — text inline, URL via fetch + `stripHtml`, file via R2 + `pdf-parse`
 - `embedTexts` / `embedText` (`src/lib/ai.ts`) — Gemini `embedMany`/`embed` wrappers with `outputDimensionality: 768`
 - `chatModel` (`src/lib/ai.ts`) — LLM for grounded answers; Gemini `languageModel` (`GEMINI_CHAT_MODEL`, default `gemini-2.5-flash`) or OpenRouter OpenAI-compatible chat model when `OPENROUTER_API_KEY` + `OPENROUTER_MODEL` are set
 - `retrieveChunks` / `isValidUuid` / `clampTopK` (`src/lib/retrieval.ts`) — embed query + pgvector `<=>` cosine search scoped to `kbId`, topK default 5 clamp 1–10
-- `POST query` handler (`src/app/api/knowledge-bases/[id]/query/route.ts`) — tenancy-guarded retrieval + `generateText` grounded answer; returns `{ answer, chunks }`
+- `POST query` handler (`src/app/api/knowledge-bases/[kbId]/query/route.ts`) — tenancy-guarded retrieval + `generateText` grounded answer; returns `{ answer, chunks }`
 - `uploadToR2` / `getFromR2` / `removeFromR2` (`src/lib/r2.ts`) — R2 object storage (S3 API)
 
 ## Dependencies
@@ -99,7 +96,6 @@
 - `GEMINI_EMBEDDING_MODEL` — embedding model id (default `gemini-embedding-001`, 768 dims)
 - `GEMINI_CHAT_MODEL` — Gemini chat model for grounded answers (default `gemini-2.5-flash`)
 - `OPENROUTER_API_KEY` / `OPENROUTER_MODEL` / `OPENROUTER_BASE_URL` — optional: route the chat model through OpenRouter (OpenAI-compatible) instead of Gemini
-- `ENABLE_TEST_PANEL` — local-only flag to enable the gated test panel UI in prod-like builds (never set in Vercel prod env)
 - `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` — Cloudflare R2 (S3 API) for file sources
 - `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY` — Inngest cloud keys (optional for dev); `INNGEST_DEV=1` for local dev server
 

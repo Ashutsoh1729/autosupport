@@ -105,5 +105,6 @@ Implemented per the plan's goals: a shadcn/ui `Sidebar` layout on the dashboard 
 
 ### Remaining / Known Gaps
 - `SidebarTrigger`/Tooltip components: no `TooltipProvider` wrapper is needed today because the sidebar never passes a `tooltip` prop; if tooltips are added to collapsed sidebar icons later, add `TooltipProvider` in the root layout.
-- The kib/source/test routes are reachable from project/KB detail pages, but the sidebar currently only lists projects — deeper navigation (KBs, sources, test panel) can be added when those pages ship more content.
+- The kib/source routes are reachable from project/KB detail pages, but the sidebar currently only lists projects — deeper navigation (KBs, sources, test panel) can be added when those pages ship more content.
 - `components.json` uses the newer `radix-nova` style; regenerating components with the current shadcn CLI will keep them consistent.
+- **Post-Testing Cleanup (included in this PR):** per M2 Plan 04's cleanup note, the retrieval test panel UI was removed — deleted `src/components/test-panel.tsx` and the `[kbId]/test` route, removed the "Test chat" link + `ENABLE_TEST_PANEL` gate from the KB detail page, dropped the env var from `.env.example`/docs, and narrowed the `test/` gitignore to root-only (`/test/`). The `POST /api/knowledge-bases/[kbId]/query` chatbot backend + `src/lib/retrieval.ts` are intentionally kept (not gated) for future agent/chat use.
