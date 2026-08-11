@@ -3,9 +3,9 @@
 > Maintained by the plan-executor skill after each completed plan.
 
 ## Current Status
-- Milestone: M2 Knowledge Base + Projects (in progress)
-- Completed plans: M1 all (`01-project-scaffold`, `02-database-schema`, `03-authentication`, `04-workspace-dashboard`), M2 all (`01-project-crud`, `02-knowledge-base-crud`, `03-source-ingestion`, `04-retrieval-test-panel`, `05-dashboard-ui`) — all archived
-- Next plan: M3 `01-agent-builder`
+- Milestone: M3 Agent Builder (in progress)
+- Completed plans: M1 all, M2 all (01–05 archived), M3 `01-agent-schema` (archived)
+- Next plan: M3 `02-agent-crud`
 
 ## Key Files
 - `src/app/page.tsx` — landing page (server component)
@@ -34,10 +34,11 @@
 - `src/lib/db.ts` — Drizzle `db` singleton over a `pg` Pool
 - `src/lib/auth.ts` — Better Auth server config (Drizzle adapter + email/password)
 - `src/lib/auth-client.ts` — Better Auth React client
-- `src/lib/db/schema.ts` — app tables: `workspaces`, `memberships`, `projects`, `knowledge_bases`, `knowledge_sources`, `chunks` (pgvector HNSW index) + types
+- `src/lib/db/schema.ts` — app tables: `workspaces`, `memberships`, `projects`, `knowledge_bases`, `agents` (multiple per project; config columns + `kb_ids` array), `knowledge_sources`, `chunks` (pgvector HNSW index) + types
 - `src/lib/db/auth-schema.ts` — Better Auth tables: `user`, `session`, `account`, `verification` (CLI-generated)
 - `drizzle.config.ts` — drizzle-kit config (Neon Postgres; schema list includes auth-schema)
-- `drizzle/` — generated migrations (0000 initial, 0001 auth, 0002 projects, 0003 knowledge_bases, 0004 sources + chunks)
+- `drizzle/` — generated migrations (0000 initial, 0001 auth, 0002 projects, 0003 knowledge_bases, 0004 sources + chunks, 0005 agents)
+- `docs/plan/m3-agent-builder/` — M3 plans (01 archived; 02–03 pending)
 - `components.json` — shadcn/ui config (radix-nova style, neutral base, `@/` aliases)
 - `src/lib/utils.ts` — `cn()` Tailwind class-merge helper (clsx + tailwind-merge)
 - `src/components/ui/` — shadcn components: `sidebar.tsx`, `dialog.tsx`, `button.tsx`, `input.tsx`, `separator.tsx`, `sheet.tsx`, `tooltip.tsx`, `skeleton.tsx`
@@ -58,7 +59,7 @@
 - `auth` (`src/lib/auth.ts`) — Better Auth instance (Drizzle adapter, email/password, `databaseHooks.user.create.after` signup hook creating workspace + membership + default project, `baseURL`)
 - `authClient` (`src/lib/auth-client.ts`) — browser-side auth client
 - `db`, `pool` (`src/lib/db.ts`) — Drizzle client + `pg` Pool singleton
-- `workspaces`, `memberships`, `projects`, `knowledgeBases` + type exports (`src/lib/db/schema.ts`) — table definitions
+- `workspaces`, `memberships`, `projects`, `knowledgeBases`, `agents` + type exports (`src/lib/db/schema.ts`) — table definitions
 - `user`, `session`, `account`, `verification` (`src/lib/db/auth-schema.ts`) — Better Auth tables (CLI-generated)
 - `SignOutButton` (`src/components/sign-out-button.tsx`) — client sign-out control in sidebar footer
 - `GET/POST projects` handlers (`src/app/api/workspaces/[workspaceId]/projects/route.ts`) — list/create projects with session + membership guard
