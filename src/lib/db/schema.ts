@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, integer, uniqueIndex, vector, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, integer, real, uniqueIndex, vector, index } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { user } from "@/lib/db/auth-schema";
 
@@ -41,6 +41,31 @@ export const knowledgeBases = pgTable("knowledge_bases", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const agents = pgTable(
+  "agents",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    name: text("name").notNull().default("Support Agent"),
+    systemPrompt: text("system_prompt").notNull().default(""),
+    guardrails: text("guardrails").notNull().default(""),
+    examplePhrases: text("example_phrases").array().notNull().default(sql`'{}'::text[]`),
+    voiceId: text("voice_id").notNull().default("aura-asteria-en"),
+    language: text("language").notNull().default("en"),
+    kbIds: uuid("kb_ids").array().notNull().default(sql`'{}'::uuid[]`),
+    topK: integer("top_k").notNull().default(4),
+    similarityThreshold: real("similarity_threshold").notNull().default(0.3),
+    interruptionSensitivity: text("interruption_sensitivity").notNull().default("medium"),
+    endCallKeyword: text("end_call_keyword").notNull().default("end call"),
+    escalationMessage: text("escalation_message").notNull().default(""),
+    status: text("status", { enum: ["draft", "published"] }).notNull().default("draft"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("agents_project_id_idx").on(table.projectId)],
+);
+
 export const knowledgeSources = pgTable("knowledge_sources", {
   id: uuid("id").primaryKey().defaultRandom(),
   kbId: uuid("kb_id")
@@ -82,5 +107,6 @@ export type Workspace = typeof workspaces.$inferSelect;
 export type Membership = typeof memberships.$inferSelect;
 export type Project = typeof projects.$inferSelect;
 export type KnowledgeBase = typeof knowledgeBases.$inferSelect;
+export type Agent = typeof agents.$inferSelect;
 export type KnowledgeSource = typeof knowledgeSources.$inferSelect;
 export type Chunk = typeof chunks.$inferSelect;
