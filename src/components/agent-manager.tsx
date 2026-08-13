@@ -60,7 +60,7 @@ export function AgentManager({
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent
           side="right"
-          className="w-full overflow-y-auto sm:max-w-xl"
+          className="data-[side=right]:w-full data-[side=right]:sm:max-w-[50vw] overflow-y-auto"
         >
           <SheetHeader>
             <SheetTitle>

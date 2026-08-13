@@ -8,7 +8,7 @@ import { eq, asc } from "drizzle-orm";
 import { SignOutButton } from "@/components/sign-out-button";
 import { AgentManager } from "@/components/agent-manager";
 import {
-  NewKnowledgeBaseForm,
+  NewKnowledgeBaseDialog,
   KnowledgeBaseRowActions,
 } from "@/components/knowledge-base-forms";
 
@@ -88,7 +88,7 @@ export default async function ProjectDetailPage({
               <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">
                 Knowledge Bases
               </h2>
-              <NewKnowledgeBaseForm projectId={project.id} />
+              <NewKnowledgeBaseDialog projectId={project.id} />
             </div>
 
             {kbRows.length === 0 ? (
@@ -100,17 +100,15 @@ export default async function ProjectDetailPage({
                 {kbRows.map((kb) => (
                   <li
                     key={kb.id}
-                    className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900"
+                    className="flex items-center justify-between gap-3 rounded-lg border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900"
                   >
-                    <div className="flex items-center justify-between gap-2">
-                      <Link
-                        href={`/dashboard/projects/${project.id}/knowledge-bases/${kb.id}`}
-                        className="min-w-0 truncate font-medium text-zinc-900 hover:underline dark:text-zinc-50"
-                      >
-                        {kb.name}
-                      </Link>
-                      <KnowledgeBaseRowActions kb={kb} />
-                    </div>
+                    <Link
+                      href={`/dashboard/projects/${project.id}/knowledge-bases/${kb.id}`}
+                      className="min-w-0 flex-1 truncate font-medium text-zinc-900 hover:underline dark:text-zinc-50"
+                    >
+                      {kb.name}
+                    </Link>
+                    <KnowledgeBaseRowActions kb={kb} />
                   </li>
                 ))}
               </ul>

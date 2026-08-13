@@ -1,25 +1,82 @@
 "use client";
 
-import { useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { Controller, useForm, useWatch } from "react-hook-form";
+import { toast } from "sonner";
+import * as z from "zod";
+import { XIcon } from "lucide-react";
+
 import type { Agent } from "@/lib/db/schema";
 import { VOICES, LANGUAGES } from "@/lib/voices";
+import { Button } from "@/components/ui/button";
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@/components/ui/combobox";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
 type KnowledgeBaseRow = { id: string; name: string; createdAt: Date };
 
-function toFieldState(value?: string): string {
-  return value ?? "";
-}
+const agentSchema = z.object({
+  name: z.string().trim().min(1, "Agent name is required"),
+  systemPrompt: z.string(),
+  guardrails: z.string(),
+  examplePhrases: z.string(),
+  voiceId: z.string().min(1, "Voice is required"),
+  language: z.string().min(1, "Language is required"),
+  kbIds: z.array(z.string()),
+  topK: z
+    .string()
+    .refine((v) => {
+      const n = Number(v);
+      return !Number.isNaN(n) && n >= 1 && n <= 10;
+    }, "Enter a number between 1 and 10"),
+  similarityThreshold: z.string().refine(
+    (v) => {
+      const n = Number(v);
+      return !Number.isNaN(n) && n >= 0 && n <= 1;
+    },
+    "Enter a number between 0 and 1",
+  ),
+  interruptionSensitivity: z.enum(["low", "medium", "high"]),
+  endCallKeyword: z.string(),
+  escalationMessage: z.string(),
+});
 
-function toPhrasesInput(phrases: string[] | undefined | null): string {
-  return (phrases ?? []).join(", ");
-}
+type FormValues = z.infer<typeof agentSchema>;
+
+const VOICE_LIST = VOICES;
+const LANGUAGE_LIST = LANGUAGES;
 
 function parsePhrases(input: string): string[] {
   return input
     .split(",")
     .map((p) => p.trim())
     .filter(Boolean);
+}
+
+function toExamplePhrases(agent: Agent | null): string {
+  return (agent?.examplePhrases ?? []).join(", ");
 }
 
 export function AgentEditor({
@@ -34,101 +91,111 @@ export function AgentEditor({
   onSaved: (agent: Agent) => void;
 }) {
   const router = useRouter();
-  const [name, setName] = useState(toFieldState(agent?.name));
-  const [systemPrompt, setSystemPrompt] = useState(
-    toFieldState(agent?.systemPrompt),
-  );
-  const [guardrails, setGuardrails] = useState(toFieldState(agent?.guardrails));
-  const [examplePhrases, setExamplePhrases] = useState(
-    toPhrasesInput(agent?.examplePhrases),
-  );
-  const [voiceId, setVoiceId] = useState(
-    toFieldState(agent?.voiceId) || VOICES[0].id,
-  );
-  const [language, setLanguage] = useState(
-    toFieldState(agent?.language) || LANGUAGES[0].code,
-  );
-  const [kbIds, setKbIds] = useState<string[]>(agent?.kbIds ?? []);
-  const [topK, setTopK] = useState(String(agent?.topK ?? 4));
-  const [similarityThreshold, setSimilarityThreshold] = useState(
-    String(agent?.similarityThreshold ?? 0.3),
-  );
-  const [interruptionSensitivity, setInterruptionSensitivity] = useState(
-    toFieldState(agent?.interruptionSensitivity) || "medium",
-  );
-  const [endCallKeyword, setEndCallKeyword] = useState(
-    toFieldState(agent?.endCallKeyword) || "end call",
-  );
-  const [escalationMessage, setEscalationMessage] = useState(
-    toFieldState(agent?.escalationMessage),
-  );
-
-  const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  function toggleKb(id: string) {
-    setKbIds((prev) =>
-      prev.includes(id) ? prev.filter((k) => k !== id) : [...prev, id],
-    );
-  }
-
-  function buildPayload() {
+  function defaultValues(): FormValues {
     return {
-      name,
-      systemPrompt,
-      guardrails,
-      examplePhrases: parsePhrases(examplePhrases),
-      voiceId,
-      language,
-      kbIds,
-      topK: Number(topK),
-      similarityThreshold: Number(similarityThreshold),
-      interruptionSensitivity,
-      endCallKeyword,
-      escalationMessage,
+      name: agent?.name ?? "",
+      systemPrompt: agent?.systemPrompt ?? "",
+      guardrails: agent?.guardrails ?? "",
+      examplePhrases: toExamplePhrases(agent),
+      voiceId: agent?.voiceId || VOICE_LIST[0].id,
+      language: agent?.language || LANGUAGE_LIST[0].code,
+      kbIds: agent?.kbIds ?? [],
+      topK: String(agent?.topK ?? 4),
+      similarityThreshold: String(agent?.similarityThreshold ?? 0.3),
+      interruptionSensitivity:
+        (agent?.interruptionSensitivity as FormValues["interruptionSensitivity"]) ||
+        "medium",
+      endCallKeyword: agent?.endCallKeyword || "end call",
+      escalationMessage: agent?.escalationMessage ?? "",
     };
   }
 
-  async function persist() {
+  const form = useForm<FormValues>({
+    resolver: zodResolver(agentSchema),
+    defaultValues: defaultValues(),
+  });
+
+  const editingId = useRef(agent?.id ?? null);
+  useEffect(() => {
+    const id = agent?.id ?? null;
+    if (id !== editingId.current) {
+      editingId.current = id;
+      form.reset(defaultValues());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agent?.id, form]);
+
+  const systemPrompt = useWatch({ control: form.control, name: "systemPrompt" });
+  const kbIds = useWatch({ control: form.control, name: "kbIds" });
+  const publishDisabled = !systemPrompt.trim() || kbIds.length === 0 || saving;
+
+  function buildPayload(values: FormValues): Record<string, unknown> {
+    return {
+      name: values.name,
+      systemPrompt: values.systemPrompt,
+      guardrails: values.guardrails,
+      examplePhrases: parsePhrases(values.examplePhrases),
+      voiceId: values.voiceId,
+      language: values.language,
+      kbIds: values.kbIds,
+      topK: Number(values.topK),
+      similarityThreshold: Number(values.similarityThreshold),
+      interruptionSensitivity: values.interruptionSensitivity,
+      endCallKeyword: values.endCallKeyword,
+      escalationMessage: values.escalationMessage,
+    };
+  }
+
+  async function persist(values: FormValues): Promise<Agent | null> {
     const res = agent
       ? await fetch(`/api/agents/${agent.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(buildPayload()),
+          body: JSON.stringify(buildPayload(values)),
         })
       : await fetch(`/api/projects/${projectId}/agents`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(buildPayload()),
+          body: JSON.stringify(buildPayload(values)),
         });
 
     const data = await res.json().catch(() => null);
     if (!res.ok) {
-      setError(data?.error ?? "Failed to save agent");
+      toast.error(data?.error ?? "Failed to save agent");
       return null;
     }
-    setError(null);
     return data as Agent;
   }
 
-  async function handleSave() {
+  const handleSave = form.handleSubmit(async (values) => {
     setSaving(true);
     try {
-      const saved = await persist();
+      const saved = await persist(values);
       if (!saved) return;
+      toast.success(agent ? "Agent updated" : "Agent created");
       router.refresh();
       onSaved(saved);
     } finally {
       setSaving(false);
     }
-  }
+  });
 
-  async function handlePublish() {
+  const handlePublish = form.handleSubmit(async (values) => {
+    if (!values.systemPrompt.trim()) {
+      toast.error("Agent needs a system prompt before publishing");
+      return;
+    }
+    if (values.kbIds.length === 0) {
+      toast.error("Attach at least one knowledge base before publishing");
+      return;
+    }
     setSaving(true);
     try {
       let target = agent;
       if (!target) {
-        target = await persist();
+        target = await persist(values);
         if (!target) return;
       }
       const res = await fetch(`/api/agents/${target.id}/publish`, {
@@ -138,228 +205,372 @@ export function AgentEditor({
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(data?.error ?? "Failed to publish agent");
+        toast.error(data?.error ?? "Failed to publish agent");
         return;
       }
+      toast.success("Agent published");
       router.refresh();
       onSaved(data);
     } finally {
       setSaving(false);
     }
-  }
-
-  const publishDisabled =
-    !systemPrompt.trim() || kbIds.length === 0 || saving;
+  });
 
   return (
-    <div className="flex flex-col gap-4">
-      {error ? (
-        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
-          {error}
-        </p>
-      ) : null}
+    <form
+      onSubmit={handleSave}
+      className="flex flex-col gap-4"
+    >
+      <FieldGroup>
+        <Controller
+          name="name"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor="agent-name">Name</FieldLabel>
+              <Input
+                {...field}
+                id="agent-name"
+                aria-invalid={fieldState.invalid}
+                placeholder="Refunds Agent"
+              />
+              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+            </Field>
+          )}
+        />
 
-      <section className="flex flex-col gap-3">
-        <h4 className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
-          Identity
-        </h4>
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="text-zinc-600 dark:text-zinc-400">Name</span>
-          <input
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="text-zinc-600 dark:text-zinc-400">
-            System prompt
-          </span>
-          <textarea
-            rows={5}
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
-            value={systemPrompt}
-            onChange={(e) => setSystemPrompt(e.target.value)}
-            placeholder="You are a helpful support agent for..."
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="text-zinc-600 dark:text-zinc-400">
-            Example phrases (comma separated)
-          </span>
-          <input
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
-            value={examplePhrases}
-            onChange={(e) => setExamplePhrases(e.target.value)}
-            placeholder="How can I refund this?, Shipping times"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="text-zinc-600 dark:text-zinc-400">Guardrails</span>
-          <textarea
-            rows={3}
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
-            value={guardrails}
-            onChange={(e) => setGuardrails(e.target.value)}
-            placeholder="Never promise discounts, always confirm order numbers..."
-          />
-        </label>
-      </section>
+        <Controller
+          name="systemPrompt"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor="agent-system-prompt">
+                System prompt
+              </FieldLabel>
+              <Textarea
+                {...field}
+                id="agent-system-prompt"
+                aria-invalid={fieldState.invalid}
+                rows={5}
+                placeholder="You are a helpful support agent for..."
+              />
+              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+            </Field>
+          )}
+        />
 
-      <section className="flex flex-col gap-3">
-        <h4 className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
-          Voice
-        </h4>
+        <Controller
+          name="examplePhrases"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor="agent-example-phrases">
+                Example phrases (comma separated)
+              </FieldLabel>
+              <Input
+                {...field}
+                id="agent-example-phrases"
+                aria-invalid={fieldState.invalid}
+                placeholder="How can I refund this?, Shipping times"
+              />
+              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+            </Field>
+          )}
+        />
+
+        <Controller
+          name="guardrails"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor="agent-guardrails">Guardrails</FieldLabel>
+              <Textarea
+                {...field}
+                id="agent-guardrails"
+                aria-invalid={fieldState.invalid}
+                rows={3}
+                placeholder="Never promise discounts, always confirm order numbers..."
+              />
+              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+            </Field>
+          )}
+        />
+      </FieldGroup>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Controller
+          name="voiceId"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor="agent-voice">Voice</FieldLabel>
+              <Select
+                name={field.name}
+                value={field.value}
+                onValueChange={field.onChange}
+              >
+                <SelectTrigger
+                  id="agent-voice"
+                  className="w-full"
+                  aria-invalid={fieldState.invalid}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent position="item-aligned">
+                  {VOICE_LIST.map((v) => (
+                    <SelectItem key={v.id} value={v.id}>
+                      {v.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+            </Field>
+          )}
+        />
+
+        <Controller
+          name="language"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor="agent-language">Language</FieldLabel>
+              <Select
+                name={field.name}
+                value={field.value}
+                onValueChange={field.onChange}
+              >
+                <SelectTrigger
+                  id="agent-language"
+                  className="w-full"
+                  aria-invalid={fieldState.invalid}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent position="item-aligned">
+                  {LANGUAGE_LIST.map((l) => (
+                    <SelectItem key={l.code} value={l.code}>
+                      {l.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+            </Field>
+          )}
+        />
+      </div>
+
+      <FieldGroup>
+        <Controller
+          name="kbIds"
+          control={form.control}
+          render={({ field }) => {
+            const selected = field.value
+              .map((id) => kbs.find((kb) => kb.id === id))
+              .filter((kb): kb is KnowledgeBaseRow => Boolean(kb));
+            return (
+              <Field>
+                <FieldLabel htmlFor="agent-kbs">Knowledge</FieldLabel>
+                {kbs.length === 0 ? (
+                  <p className="rounded-lg border border-dashed border-zinc-300 p-4 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+                    No knowledge bases yet — create one above to attach it
+                  </p>
+                ) : (
+                  <>
+                    {selected.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {selected.map((kb) => (
+                          <span
+                            key={kb.id}
+                            className="flex h-5 items-center gap-1 rounded-sm bg-muted pl-1.5 pr-1 text-xs font-medium text-foreground"
+                          >
+                            {kb.name}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                field.onChange(
+                                  field.value.filter((id) => id !== kb.id),
+                                )
+                              }
+                              className="-ml-1 flex size-4 items-center justify-center rounded-sm text-muted-foreground hover:bg-zinc-200 hover:text-foreground dark:hover:bg-zinc-700"
+                              aria-label={`Remove ${kb.name}`}
+                            >
+                              <XIcon className="size-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <Combobox
+                      items={kbs}
+                      multiple
+                      itemToStringValue={(kb) => kb.name}
+                      value={selected}
+                      onValueChange={(items: KnowledgeBaseRow[]) =>
+                        field.onChange(items.map((kb) => kb.id))
+                      }
+                    >
+                      <ComboboxInput placeholder="Select knowledge bases..." />
+                      <ComboboxContent>
+                        <ComboboxEmpty>No items found.</ComboboxEmpty>
+                        <ComboboxList>
+                          {(kb: KnowledgeBaseRow) => (
+                            <ComboboxItem key={kb.id} value={kb}>
+                              {kb.name}
+                            </ComboboxItem>
+                          )}
+                        </ComboboxList>
+                      </ComboboxContent>
+                    </Combobox>
+                  </>
+                )}
+              </Field>
+            );
+          }}
+        />
+
         <div className="grid grid-cols-2 gap-3">
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="text-zinc-600 dark:text-zinc-400">Voice</span>
-            <select
-              className="rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
-              value={voiceId}
-              onChange={(e) => setVoiceId(e.target.value)}
-            >
-              {VOICES.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="text-zinc-600 dark:text-zinc-400">Language</span>
-            <select
-              className="rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
-              value={language}
-              onChange={(e) => setLanguage(e.target.value)}
-            >
-              {LANGUAGES.map((l) => (
-                <option key={l.code} value={l.code}>
-                  {l.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <h4 className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
-          Knowledge
-        </h4>
-        {kbs.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-zinc-300 p-4 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
-            No knowledge bases yet — create one above to attach it
-          </p>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {kbs.map((kb) => (
-              <li key={kb.id}>
-                <label className="flex items-center gap-2 text-sm text-zinc-900 dark:text-zinc-50">
-                  <input
-                    type="checkbox"
-                    checked={kbIds.includes(kb.id)}
-                    onChange={() => toggleKb(kb.id)}
-                  />
-                  {kb.name}
-                </label>
-              </li>
-            ))}
-          </ul>
-        )}
-        <div className="grid grid-cols-2 gap-3">
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="text-zinc-600 dark:text-zinc-400">
-              Chunks to retrieve (topK)
-            </span>
-            <input
-              type="number"
-              min={1}
-              max={10}
-              className="rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
-              value={topK}
-              onChange={(e) => setTopK(e.target.value)}
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="text-zinc-600 dark:text-zinc-400">
-              Similarity threshold
-            </span>
-            <input
-              type="number"
-              min={0}
-              max={1}
-              step={0.05}
-              className="rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
-              value={similarityThreshold}
-              onChange={(e) => setSimilarityThreshold(e.target.value)}
-            />
-          </label>
-        </div>
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <h4 className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
-          Behavior
-        </h4>
-        <div className="grid grid-cols-2 gap-3">
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="text-zinc-600 dark:text-zinc-400">
-              Interruption sensitivity
-            </span>
-            <select
-              className="rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
-              value={interruptionSensitivity}
-              onChange={(e) => setInterruptionSensitivity(e.target.value)}
-            >
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="text-zinc-600 dark:text-zinc-400">
-              End-call keyword
-            </span>
-            <input
-              className="rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
-              value={endCallKeyword}
-              onChange={(e) => setEndCallKeyword(e.target.value)}
-            />
-          </label>
-        </div>
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="text-zinc-600 dark:text-zinc-400">
-            Escalation fallback message
-          </span>
-          <textarea
-            rows={3}
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
-            value={escalationMessage}
-            onChange={(e) => setEscalationMessage(e.target.value)}
-            placeholder="I couldn't answer that — let me connect you with a human agent."
+          <Controller
+            name="topK"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor="agent-topk">
+                  Chunks to retrieve (topK)
+                </FieldLabel>
+                <Input
+                  {...field}
+                  id="agent-topk"
+                  type="number"
+                  min={1}
+                  max={10}
+                  aria-invalid={fieldState.invalid}
+                />
+                {fieldState.invalid && (
+                  <FieldError errors={[fieldState.error]} />
+                )}
+              </Field>
+            )}
           />
-        </label>
-      </section>
+
+          <Controller
+            name="similarityThreshold"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor="agent-similarity">
+                  Similarity threshold
+                </FieldLabel>
+                <Input
+                  {...field}
+                  id="agent-similarity"
+                  type="number"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  aria-invalid={fieldState.invalid}
+                />
+                {fieldState.invalid && (
+                  <FieldError errors={[fieldState.error]} />
+                )}
+              </Field>
+            )}
+          />
+        </div>
+      </FieldGroup>
+
+      <FieldGroup>
+        <div className="grid grid-cols-2 gap-3">
+          <Controller
+            name="interruptionSensitivity"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor="agent-interruption">
+                  Interruption sensitivity
+                </FieldLabel>
+                <Select
+                  name={field.name}
+                  value={field.value}
+                  onValueChange={field.onChange}
+                >
+                  <SelectTrigger
+                    id="agent-interruption"
+                    className="w-full"
+                    aria-invalid={fieldState.invalid}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent position="item-aligned">
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                  </SelectContent>
+                </Select>
+                {fieldState.invalid && (
+                  <FieldError errors={[fieldState.error]} />
+                )}
+              </Field>
+            )}
+          />
+
+          <Controller
+            name="endCallKeyword"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor="agent-end-call">
+                  End-call keyword
+                </FieldLabel>
+                <Input
+                  {...field}
+                  id="agent-end-call"
+                  aria-invalid={fieldState.invalid}
+                />
+                {fieldState.invalid && (
+                  <FieldError errors={[fieldState.error]} />
+                )}
+              </Field>
+            )}
+          />
+        </div>
+
+        <Controller
+          name="escalationMessage"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor="agent-escalation">
+                Escalation fallback message
+              </FieldLabel>
+              <Textarea
+                {...field}
+                id="agent-escalation"
+                aria-invalid={fieldState.invalid}
+                rows={3}
+                placeholder="I couldn't answer that — let me connect you with a human agent."
+              />
+              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+            </Field>
+          )}
+        />
+      </FieldGroup>
 
       <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={saving}
-          className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-50 hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
-        >
+        <Button type="submit" disabled={saving}>
           {saving ? "Saving..." : "Save"}
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
           onClick={handlePublish}
           disabled={publishDisabled}
-          className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+          className="bg-emerald-600 text-white hover:bg-emerald-500"
         >
           {saving ? "Publishing..." : "Publish"}
-        </button>
-        {publishDisabled ? (
-          <span className="text-xs text-zinc-500 dark:text-zinc-400">
+        </Button>
+        {publishDisabled && !saving ? (
+          <span className="text-sm text-zinc-500 dark:text-zinc-400">
             {!systemPrompt.trim()
               ? "Needs a system prompt"
               : kbIds.length === 0
@@ -368,6 +579,6 @@ export function AgentEditor({
           </span>
         ) : null}
       </div>
-    </div>
+    </form>
   );
 }

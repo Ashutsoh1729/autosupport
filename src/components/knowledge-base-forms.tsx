@@ -1,60 +1,89 @@
 "use client";
 
-import { useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { toast } from "sonner";
+import * as z from "zod";
+
 import type { KnowledgeBase } from "@/lib/db/schema";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 
-export function NewKnowledgeBaseForm({ projectId }: { projectId: string }) {
+const nameSchema = z.object({
+  name: z.string().trim().min(1, "Name is required"),
+});
+type NameValues = z.infer<typeof nameSchema>;
+
+export function NewKnowledgeBaseDialog({ projectId }: { projectId: string }) {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [open, setOpen] = useState(false);
+  const form = useForm<NameValues>({
+    resolver: zodResolver(nameSchema),
+    defaultValues: { name: "" },
+  });
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!name.trim()) return;
-
-    setSubmitting(true);
-    setError(null);
-
-    try {
-      const res = await fetch(`/api/projects/${projectId}/knowledge-bases`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        setError(data?.error ?? "Failed to create knowledge base");
-        return;
-      }
-
-      setName("");
-      router.refresh();
-    } finally {
-      setSubmitting(false);
+  const onSubmit = form.handleSubmit(async (values) => {
+    const res = await fetch(`/api/projects/${projectId}/knowledge-bases`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: values.name }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      toast.error(data?.error ?? "Failed to create knowledge base");
+      return;
     }
-  }
+    toast.success("Knowledge base created");
+    setOpen(false);
+    form.reset();
+    router.refresh();
+  });
 
   return (
-    <form onSubmit={handleSubmit} className="flex items-center gap-2">
-      <input
-        type="text"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="KB name"
-        className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-      />
-      <button
-        type="submit"
-        disabled={submitting || !name.trim()}
-        className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-300"
-      >
-        {submitting ? "Creating…" : "New KB"}
-      </button>
-      {error && <span className="text-sm text-red-600">{error}</span>}
-    </form>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button>New KB</Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>New Knowledge Base</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={onSubmit} className="flex flex-col gap-4">
+          <Controller
+            name="name"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor="kb-name">Name</FieldLabel>
+                <Input
+                  {...field}
+                  id="kb-name"
+                  aria-invalid={fieldState.invalid}
+                  placeholder="e.g. Product FAQ"
+                />
+                {fieldState.invalid && (
+                  <FieldError errors={[fieldState.error]} />
+                )}
+              </Field>
+            )}
+          />
+          <DialogFooter>
+            <Button type="submit">Create</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -62,7 +91,6 @@ export function KnowledgeBaseRowActions({ kb }: { kb: KnowledgeBase }) {
   const router = useRouter();
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(kb.name);
-  const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function handleRename() {
@@ -73,7 +101,6 @@ export function KnowledgeBaseRowActions({ kb }: { kb: KnowledgeBase }) {
     }
 
     setBusy(true);
-    setError(null);
     try {
       const res = await fetch(`/api/knowledge-bases/${kb.id}`, {
         method: "PUT",
@@ -82,9 +109,10 @@ export function KnowledgeBaseRowActions({ kb }: { kb: KnowledgeBase }) {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        setError(data?.error ?? "Rename failed");
+        toast.error(data?.error ?? "Rename failed");
         return;
       }
+      toast.success("Knowledge base renamed");
       setRenaming(false);
       router.refresh();
     } finally {
@@ -93,20 +121,24 @@ export function KnowledgeBaseRowActions({ kb }: { kb: KnowledgeBase }) {
   }
 
   async function handleDelete() {
-    if (!window.confirm(`Delete "${kb.name}"? This removes its sources and chunks.`)) {
+    if (
+      !window.confirm(
+        `Delete "${kb.name}"? This removes its sources and chunks.`,
+      )
+    ) {
       return;
     }
     setBusy(true);
-    setError(null);
     try {
       const res = await fetch(`/api/knowledge-bases/${kb.id}`, {
         method: "DELETE",
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        setError(data?.error ?? "Delete failed");
+        toast.error(data?.error ?? "Delete failed");
         return;
       }
+      toast.success("Knowledge base deleted");
       router.refresh();
     } finally {
       setBusy(false);
@@ -116,50 +148,47 @@ export function KnowledgeBaseRowActions({ kb }: { kb: KnowledgeBase }) {
   if (renaming) {
     return (
       <div className="flex items-center gap-2">
-        <input
-          type="text"
+        <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+          autoFocus
+          className="h-7 w-40 text-sm"
         />
-        <button
+        <Button
+          size="sm"
           onClick={handleRename}
           disabled={busy || !name.trim()}
-          className="rounded-md bg-zinc-900 px-2 py-1 text-xs font-medium text-white hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-300"
         >
           Save
-        </button>
-        <button
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
           onClick={() => {
             setRenaming(false);
             setName(kb.name);
-            setError(null);
           }}
-          className="rounded-md px-2 py-1 text-xs text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
         >
           Cancel
-        </button>
-        {error && <span className="text-xs text-red-600">{error}</span>}
+        </Button>
       </div>
     );
   }
 
   return (
     <div className="flex items-center gap-2">
-      {error && <span className="text-xs text-red-600">{error}</span>}
-      <button
-        onClick={() => setRenaming(true)}
-        className="rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
-      >
+      <Button size="sm" variant="outline" onClick={() => setRenaming(true)}>
         Rename
-      </button>
-      <button
+      </Button>
+      <Button
+        size="sm"
+        variant="outline"
         onClick={handleDelete}
         disabled={busy}
-        className="rounded-md border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950"
+        className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-600 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950"
       >
         Delete
-      </button>
+      </Button>
     </div>
   );
 }
