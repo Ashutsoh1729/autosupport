@@ -22,17 +22,28 @@ export function clampTopK(topK: unknown): number {
 }
 
 export async function retrieveChunks(
-  kbId: string,
+  kbIds: string[],
   query: string,
   topK = 5,
+  minScore?: number,
 ): Promise<RetrievedChunk[]> {
+  if (kbIds.length === 0) return [];
   const embedding = await embedText(query);
   const vectorLiteral = `[${embedding.join(",")}]`;
+  const thresholdClause =
+    minScore !== undefined
+      ? sql`AND (1 - (embedding <=> ${vectorLiteral}::vector)) >= ${minScore}`
+      : sql``;
+  const kbArray = sql`ARRAY[${sql.join(
+    kbIds.map((id) => sql`${id}::uuid`),
+    sql`, `,
+  )}]`;
 
   const result = await db.execute(sql`
     SELECT content, source_id, index, 1 - (embedding <=> ${vectorLiteral}::vector) AS score
     FROM chunks
-    WHERE kb_id = ${kbId}
+    WHERE kb_id = ANY(${kbArray})
+    ${thresholdClause}
     ORDER BY embedding <=> ${vectorLiteral}::vector
     LIMIT ${topK}
   `);
