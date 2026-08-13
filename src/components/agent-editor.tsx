@@ -26,12 +26,12 @@ export function AgentEditor({
   projectId,
   agent,
   kbs,
-  onCreated,
+  onSaved,
 }: {
   projectId: string;
   agent: Agent | null;
   kbs: KnowledgeBaseRow[];
-  onCreated?: (agent: Agent) => void;
+  onSaved: (agent: Agent) => void;
 }) {
   const router = useRouter();
   const [name, setName] = useState(toFieldState(agent?.name));
@@ -63,7 +63,6 @@ export function AgentEditor({
     toFieldState(agent?.escalationMessage),
   );
 
-  const [status, setStatus] = useState<Agent["status"] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -117,13 +116,8 @@ export function AgentEditor({
     try {
       const saved = await persist();
       if (!saved) return;
-      setStatus(saved.status);
-      if (agent === null && onCreated) {
-        router.refresh();
-        onCreated(saved);
-        return;
-      }
       router.refresh();
+      onSaved(saved);
     } finally {
       setSaving(false);
     }
@@ -147,13 +141,8 @@ export function AgentEditor({
         setError(data?.error ?? "Failed to publish agent");
         return;
       }
-      setStatus(data.status);
-      if (agent === null && onCreated) {
-        router.refresh();
-        onCreated(data);
-        return;
-      }
       router.refresh();
+      onSaved(data);
     } finally {
       setSaving(false);
     }
@@ -163,18 +152,7 @@ export function AgentEditor({
     !systemPrompt.trim() || kbIds.length === 0 || saving;
 
   return (
-    <div className="flex flex-col gap-4 rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">
-          {agent === null ? "New Agent" : "Edit Agent"}
-        </h3>
-        {status ? (
-          <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-            Saved ({status})
-          </span>
-        ) : null}
-      </div>
-
+    <div className="flex flex-col gap-4">
       {error ? (
         <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
           {error}

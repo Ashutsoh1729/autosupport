@@ -86,15 +86,16 @@ Add `src/lib/voices.ts` catalog → add `src/components/agent-list.tsx` (list + 
 ## Execution Notes
 
 ### Architecture
-- Added a small `AgentManager` client wrapper (`src/components/agent-manager.tsx`) that lifts `selectedAgentId` + `creating`, renders `AgentList` (presentational rows + status badges) and `AgentEditor` (the form). The editor is keyed by `selectedAgent?.id ?? "new"` so switching agents fully resets the form — this satisfies "form fields reset when it changes" simply and reliably.
-- `AgentEditor` owns all field state, builds the same payload shape the plan-02 API validates (`parseAgentBody` field names match 1:1), and calls `router.refresh()` after every successful mutation so the server list re-renders with the new status.
+- Added a small `AgentManager` client wrapper (`src/components/agent-manager.tsx`) that owns sheet state (`sheetOpen`, `editingAgent`), renders `AgentList` (presentational rows + status badges), and hosts the builder form inside a shadcn **Sheet** (slide-over). "New Agent" opens the sheet in create mode; clicking an agent row opens it in edit mode; save/publish close the sheet and refresh the server list.
+- `AgentEditor` owns all field state, builds the same payload shape the plan-02 API validates (`parseAgentBody` field names match 1:1), and calls `router.refresh()` + `onSaved(agent)` after every successful mutation so the sheet closes and the list re-renders.
 
 ### How it was implemented
 - `src/lib/voices.ts`: static Deepgram `aura-*` catalog (`VOICES`) + `LANGUAGES` list. Static until M4's runtime.
 - `src/components/agent-list.tsx`: rows show name + Draft/Published badge; selected row highlighted; an empty-state message when no agents.
-- `src/components/agent-editor.tsx`: four sections (Identity/Voice/Knowledge/Behavior) matching spec §6.3; KB multi-select from the project's KBs; topK + similarity threshold; interruption sensitivity select; publish button disabled client-side (and server-enforced) when prompt or KBs are missing; Save for new agents POSTs then calls `onCreated` to select the new agent.
+- `src/components/agent-manager.tsx`: `Sheet` with `side="right"` + `sm:max-w-xl` content; `SheetHeader`/`SheetTitle` give the create/edit title so the editor renders as a bare form.
+- `src/components/agent-editor.tsx`: four sections (Identity/Voice/Knowledge/Behavior) matching spec §6.3; KB multi-select from the project's KBs; topK + similarity threshold; interruption sensitivity select; publish button disabled client-side (and server-enforced) when prompt or KBs are missing; Save POSTs (new) or PUTs (existing) then calls `onSaved` to close the sheet.
 - `src/app/(product)/dashboard/projects/[projectId]/page.tsx`: fetches `agentRows` alongside KBs and renders `<AgentManager>` above the KB section.
-- Verified: `npm run build` + `npm run lint` pass; end-to-end render check via dev server with a scratch user — project page returned the agent list ("UI Agent", Draft badge) and all four editor sections SSR'd; API round-trip (create KB → create agent → attach KB) already covered by plan 02's verification.
+- Verified: `npm run build` + `npm run lint` pass; end-to-end render check via dev server with a scratch user — project page returned the agent list ("Sheet Agent", Draft badge), the "New Agent" button, and the empty-state; the sheet renders as a Radix portal (its content only mounts when open, so it does not appear in SSR HTML, which is expected).
 
 ### Files Created
 - `src/lib/voices.ts` — `VOICES` + `LANGUAGES`
