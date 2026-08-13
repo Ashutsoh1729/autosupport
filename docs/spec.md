@@ -31,7 +31,7 @@ The product is built to demonstrate a complete, production-minded voice AI platf
 
 1. **Sign up** → create an account, a default workspace, and a default project.
 2. **Build a knowledge base** (within a project) → upload files (PDF/TXT/MD), add raw text, or import a URL; the system chunks and indexes it.
-3. **Create an agent** (within a project) → set a name, system prompt/personality, guardrails, select a voice + language, and attach one or more knowledge bases.
+3. **Create agent(s)** (within a project) → set a name, system prompt/personality, guardrails, select a voice + language, and attach one or more of the project's knowledge bases. Create multiple agents per project when needed.
 4. **Test the agent** → open the test console, press call, and converse via browser mic/speaker.
 5. **Deploy (stretch)** → get a phone number or embeddable widget link.
 6. **Review** → view call history, transcripts, recordings, and simple analytics.
@@ -41,7 +41,8 @@ The product is built to demonstrate a complete, production-minded voice AI platf
 ### 6.1 Accounts & Workspaces
 
 - Email/password auth (Better Auth), optional social login (Google) later.
-- Each user gets a workspace; a workspace contains one or more projects; each project bundles one agent + its knowledge bases (multi-tenant isolation at workspace level).
+- Each user gets a workspace; a workspace contains one or more projects; each project can host multiple agents, and each agent attaches its own set of knowledge bases (multi-tenant isolation at workspace level).
+- Knowledge bases belong to a project but are reusable across that project's agents (attach, not copy).
 - Members (future): invite + role scoping.
 
 ### 6.2 Knowledge Base Engine
@@ -57,8 +58,9 @@ The product is built to demonstrate a complete, production-minded voice AI platf
 - Identity (shared): name, system prompt, example phrases, guardrails.
 - Voice (voice agents only): pick from provider voice list; language selection; interruption sensitivity; end-call keyword.
 - Behavior config (shared): greeting message, tone, suggested prompts, max turns, escalation fallback message.
-- Knowledge (shared): attach KB(s), retrieval settings (chunk count, similarity threshold).
+- Knowledge (shared): attach one or more of the project's KBs (reusable across agents), retrieval settings (chunk count, similarity threshold).
 - Save as draft → publish.
+- Multiple agents per project; each agent is configured independently and attaches its own KBs.
 
 ### 6.4 Voice Runtime (Browser Widget — primary)
 
@@ -128,7 +130,7 @@ Better Auth manages auth tables via its Drizzle adapter: `user`, `session`, `acc
 - `knowledge_bases` — id, projectId, name, createdAt
 - `knowledge_sources` — id, kbId, type (text|file|url), status, contentRef (R2 object key for files / text / fetched URL)
 - `chunks` — id, sourceId, index, content, embedding (vector), kbId
-- `agents` — id, projectId, name, channel (text|voice), systemPrompt, guardrails, examplePhrases, kbIds, topK, similarityThreshold, escalationMessage, config (jsonb: greeting/tone/suggestedPrompts/maxTurns), voiceConfig (jsonb, voice-only), status (draft|published)
+- `agents` — id, projectId (multiple agents per project), name, channel (text|voice), systemPrompt, guardrails, examplePhrases, kbIds (array of attached project KBs), topK, similarityThreshold, escalationMessage, config (jsonb: greeting/tone/suggestedPrompts/maxTurns), voiceConfig (jsonb, voice-only), status (draft|published)
 - `calls` — id, workspaceId, agentId, status, startedAt, endedAt, durationMs, transcriptJson, recordingUrl (optional), summary
 
 ## 10. API Surface (High Level)
@@ -157,7 +159,7 @@ Better Auth manages auth tables via its Drizzle adapter: `user`, `session`, `acc
 
 1. **M1 — Foundations**: Next.js app, auth, workspace, project, DB schema, deployable on Vercel.
 2. **M2 — Knowledge Base + Projects**: project CRUD, text/upload ingestion, chunking, embedding, retrieval, KB test panel. *(Implements: Vercel AI SDK `embed`/`embedMany` for embedding, LLM via AI SDK for the test-panel answer.)*
-3. **M3 — Agent Builder**: agent CRUD (per project), prompt/guardrails/voice config, publish.
+3. **M3 — Agent Builder**: agent CRUD (multiple per project), prompt/guardrails/voice config, KB attach, publish.
 4. **M4 — Voice Runtime**: LiveKit browser call end-to-end (STT→RAG→LLM→TTS), test console.
 5. **M5 — Analytics**: call persistence, transcripts, recordings, dashboard.
 6. **M6 (Stretch)**: inbound phone number, widget embed, members.
