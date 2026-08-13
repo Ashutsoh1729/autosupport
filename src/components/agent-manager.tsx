@@ -40,6 +40,15 @@ export function AgentManager({
     setSheetOpen(false);
   }
 
+  function handleDeleted(id: string) {
+    if (selectedId === id) {
+      const remaining = agents.filter((a) => a.id !== id);
+      setSelectedId(remaining[0]?.id ?? null);
+    }
+    setEditingAgent(null);
+    setSheetOpen(false);
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -55,7 +64,12 @@ export function AgentManager({
         </button>
       </div>
 
-      <AgentList agents={agents} selectedId={selectedId} onSelect={openEdit} />
+      <AgentList
+        agents={agents}
+        selectedId={selectedId}
+        onSelect={openEdit}
+        onDeleted={handleDeleted}
+      />
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent

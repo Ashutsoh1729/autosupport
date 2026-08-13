@@ -1,9 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { Code2Icon, MessageSquareTextIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { Code2Icon, MessageSquareTextIcon, Trash2Icon } from "lucide-react";
 import type { Agent } from "@/lib/db/schema";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { EmbedAgentDialog } from "@/components/embed-agent-dialog";
 import { TestChatDialog } from "@/components/test-chat-dialog";
 
@@ -11,13 +21,40 @@ export function AgentList({
   agents,
   selectedId,
   onSelect,
+  onDeleted,
 }: {
   agents: Agent[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  onDeleted?: (id: string) => void;
 }) {
+  const router = useRouter();
   const [embedAgent, setEmbedAgent] = useState<Agent | null>(null);
   const [testAgent, setTestAgent] = useState<Agent | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Agent | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/agents/${deleteTarget.id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        toast.error(data?.error ?? "Failed to delete agent");
+        return;
+      }
+      toast.success("Agent deleted");
+      const deletedId = deleteTarget.id;
+      setDeleteTarget(null);
+      onDeleted?.(deletedId);
+      router.refresh();
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   if (agents.length === 0) {
     return (
@@ -82,6 +119,16 @@ export function AgentList({
                     </Button>
                   </div>
                 )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`Delete ${agent.name}`}
+                  className="ml-2 shrink-0 text-zinc-400 hover:text-red-600 dark:hover:text-red-400"
+                  onClick={() => setDeleteTarget(agent)}
+                >
+                  <Trash2Icon />
+                </Button>
               </div>
             </li>
           );
@@ -109,6 +156,35 @@ export function AgentList({
           }}
         />
       )}
+
+      <Dialog open={deleteTarget !== null} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete agent?</DialogTitle>
+            <DialogDescription>
+              Delete {deleteTarget?.name} and its chat history permanently?
+              This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeleteTarget(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={deleting}
+              onClick={confirmDelete}
+            >
+              {deleting ? "Deleting…" : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
