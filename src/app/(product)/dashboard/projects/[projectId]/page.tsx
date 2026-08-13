@@ -3,11 +3,12 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { projects, knowledgeBases } from "@/lib/db/schema";
+import { projects, knowledgeBases, agents } from "@/lib/db/schema";
 import { eq, asc } from "drizzle-orm";
 import { SignOutButton } from "@/components/sign-out-button";
+import { AgentManager } from "@/components/agent-manager";
 import {
-  NewKnowledgeBaseForm,
+  NewKnowledgeBaseDialog,
   KnowledgeBaseRowActions,
 } from "@/components/knowledge-base-forms";
 
@@ -39,6 +40,12 @@ export default async function ProjectDetailPage({
     .where(eq(knowledgeBases.projectId, projectId))
     .orderBy(asc(knowledgeBases.createdAt));
 
+  const agentRows = await db
+    .select()
+    .from(agents)
+    .where(eq(agents.projectId, projectId))
+    .orderBy(asc(agents.createdAt));
+
   return (
     <div className="flex flex-1 flex-col bg-zinc-50 dark:bg-black">
       <header className="flex items-center justify-between border-b border-zinc-200 px-6 py-4 dark:border-zinc-800">
@@ -66,16 +73,22 @@ export default async function ProjectDetailPage({
               {project.name}
             </h1>
             <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-              Knowledge bases for this project
+              Agents and knowledge bases for this project
             </p>
           </div>
+
+          <AgentManager
+            projectId={project.id}
+            agents={agentRows}
+            kbs={kbRows}
+          />
 
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">
                 Knowledge Bases
               </h2>
-              <NewKnowledgeBaseForm projectId={project.id} />
+              <NewKnowledgeBaseDialog projectId={project.id} />
             </div>
 
             {kbRows.length === 0 ? (
@@ -87,17 +100,15 @@ export default async function ProjectDetailPage({
                 {kbRows.map((kb) => (
                   <li
                     key={kb.id}
-                    className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900"
+                    className="flex items-center justify-between gap-3 rounded-lg border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900"
                   >
-                    <div className="flex items-center justify-between gap-2">
-                      <Link
-                        href={`/dashboard/projects/${project.id}/knowledge-bases/${kb.id}`}
-                        className="min-w-0 truncate font-medium text-zinc-900 hover:underline dark:text-zinc-50"
-                      >
-                        {kb.name}
-                      </Link>
-                      <KnowledgeBaseRowActions kb={kb} />
-                    </div>
+                    <Link
+                      href={`/dashboard/projects/${project.id}/knowledge-bases/${kb.id}`}
+                      className="min-w-0 flex-1 truncate font-medium text-zinc-900 hover:underline dark:text-zinc-50"
+                    >
+                      {kb.name}
+                    </Link>
+                    <KnowledgeBaseRowActions kb={kb} />
                   </li>
                 ))}
               </ul>

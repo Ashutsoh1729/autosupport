@@ -53,10 +53,11 @@ The product is built to demonstrate a complete, production-minded voice AI platf
 
 ### 6.3 Agent Builder
 
-- Identity: name, system prompt, example phrases, guardrails.
-- Voice: pick from provider voice list; language selection.
-- Knowledge: attach KB(s), retrieval settings (chunk count, similarity threshold).
-- Behavior: interruption sensitivity, end-call keyword handling, escalation fallback message.
+- **Agent type (channel)**: each agent runs on one channel — **voice** (speaks over a call) or **text** (chatbot, e.g. a sales agent). Choose the type first; the rest of the form adapts.
+- Identity (shared): name, system prompt, example phrases, guardrails.
+- Voice (voice agents only): pick from provider voice list; language selection; interruption sensitivity; end-call keyword.
+- Behavior config (shared): greeting message, tone, suggested prompts, max turns, escalation fallback message.
+- Knowledge (shared): attach KB(s), retrieval settings (chunk count, similarity threshold).
 - Save as draft → publish.
 
 ### 6.4 Voice Runtime (Browser Widget — primary)
@@ -127,7 +128,7 @@ Better Auth manages auth tables via its Drizzle adapter: `user`, `session`, `acc
 - `knowledge_bases` — id, projectId, name, createdAt
 - `knowledge_sources` — id, kbId, type (text|file|url), status, contentRef (R2 object key for files / text / fetched URL)
 - `chunks` — id, sourceId, index, content, embedding (vector), kbId
-- `agents` — id, projectId, name, systemPrompt, guardrails, voiceId, language, kbIds, status (draft|published)
+- `agents` — id, projectId, name, channel (text|voice), systemPrompt, guardrails, examplePhrases, kbIds, topK, similarityThreshold, escalationMessage, config (jsonb: greeting/tone/suggestedPrompts/maxTurns), voiceConfig (jsonb, voice-only), status (draft|published)
 - `calls` — id, workspaceId, agentId, status, startedAt, endedAt, durationMs, transcriptJson, recordingUrl (optional), summary
 
 ## 10. API Surface (High Level)

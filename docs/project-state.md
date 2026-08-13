@@ -3,9 +3,9 @@
 > Maintained by the plan-executor skill after each completed plan.
 
 ## Current Status
-- Milestone: M3 Agent Builder (in progress)
-- Completed plans: M1 all, M2 all, M3 `01-agent-schema`, `02-agent-crud` (both archived)
-- Next plan: M3 `03-agent-editor-ui`
+- Milestone: M3 Agent Builder (in progress — plans 01–05 delivered; 06 pending)
+- Completed plans: M1 all, M2 all, M3 `01-agent-schema`, `02-agent-crud`, `03-agent-editor-ui`, `04-agent-channels`, `05-agent-text-runtime` (archived)
+- Next plan: M3 `06-agent-chat-widget` (pending), then M4 `01-voice-runtime`
 
 ## Key Files
 - `src/app/page.tsx` — landing page (server component)
@@ -24,6 +24,9 @@
 - `src/app/api/sources/[id]/route.ts` — DELETE source (removes R2 object for file type)
 - `src/app/api/inngest/route.ts` — Inngest serve handler (GET/POST/PUT)
 - `src/app/api/knowledge-bases/[kbId]/query/route.ts` — POST query: guarded retrieval + grounded LLM answer (chatbot backend, not gated)
+- `src/app/api/public/agents/[agentId]/route.ts` — GET public metadata for published text agents (widget bootstrap)
+- `src/app/api/public/agents/[agentId]/chat/route.ts` — POST public streaming chat: multi-KB RAG + grounded streamed answer
+- `src/lib/agent-runtime.ts` — public text-agent runtime helpers (`loadPublishedTextAgent`, `buildAgentSystemPrompt`, `lastUserMessage`, `parseChatMessages`)
 - `src/app/(product)/dashboard/projects/[projectId]/page.tsx` — project detail / KB manager page
 - `src/app/(product)/dashboard/projects/[projectId]/knowledge-bases/[kbId]/page.tsx` — KB detail / sources page
 - `src/lib/tenancy.ts` — `requireProjectAccess` / `requireKnowledgeBaseAccess` / `requireAgentAccess` / `filterProjectKbIds` multi-tenant guards
@@ -38,13 +41,17 @@
 - `src/lib/db/auth-schema.ts` — Better Auth tables: `user`, `session`, `account`, `verification` (CLI-generated)
 - `drizzle.config.ts` — drizzle-kit config (Neon Postgres; schema list includes auth-schema)
 - `drizzle/` — generated migrations (0000 initial, 0001 auth, 0002 projects, 0003 knowledge_bases, 0004 sources + chunks, 0005 agents)
-- `docs/plan/m3-agent-builder/` — M3 plans (01–02 archived; 03 pending)
+- `docs/plan/m3-agent-builder/` — M3 plans (01–03 archived; milestone complete)
 - `src/lib/agent-validation.ts` — `parseAgentBody` shared agent field validator (create + update)
 - `components.json` — shadcn/ui config (radix-nova style, neutral base, `@/` aliases)
 - `src/lib/utils.ts` — `cn()` Tailwind class-merge helper (clsx + tailwind-merge)
 - `src/components/ui/` — shadcn components: `sidebar.tsx`, `dialog.tsx`, `button.tsx`, `input.tsx`, `separator.tsx`, `sheet.tsx`, `tooltip.tsx`, `skeleton.tsx`
 - `src/hooks/use-mobile.ts` — `useIsMobile` matchMedia hook (shadcn sidebar dependency)
 - `src/components/dashboard-sidebar.tsx` — client sidebar (workspace header, projects nav, sign-out)
+- `src/lib/voices.ts` — static voice catalog (`VOICES`) + `LANGUAGES`
+- `src/components/agent-manager.tsx` — client wrapper lifting selected-agent state (list + editor)
+- `src/components/agent-list.tsx` — agent rows + Draft/Published badges
+- `src/components/agent-editor.tsx` — agent builder form (identity/voice/knowledge/behavior + save/publish)
 - `.env.example` — env template (`DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `GEMINI_*`, `R2_*`, `INNGEST_*`)
 - `docs/spec.md` — product specification + milestones
 - `docs/plan/m1-foundations/` — archived M1 plans
@@ -72,7 +79,8 @@
 - `GET/POST sources` handlers (`src/app/api/knowledge-bases/[kbId]/sources/route.ts`) — list sources; create text/url source + enqueue Inngest (tenancy-guarded)
 - `POST sources/upload` handler (`src/app/api/knowledge-bases/[kbId]/sources/upload/route.ts`) — multipart file upload (PDF/TXT/MD → R2, `sourceObjectKey`), enqueues Inngest
 - `DELETE source` handler (`src/app/api/sources/[id]/route.ts`) — delete source; removes R2 object for file type, cascades chunks
-- `ProjectDetailPage` (`src/app/(product)/dashboard/projects/[projectId]/page.tsx`) — KB manager page (KB names link to detail page)
+- `ProjectDetailPage` (`src/app/(product)/dashboard/projects/[projectId]/page.tsx`) — KB manager + agent builder page (AgentManager above KB list)
+- `AgentManager` / `AgentList` / `AgentEditor` (`src/components/agent-*.tsx`) — multi-agent list/selection + per-agent builder form (save/publish via plan-02 API)
 - `KnowledgeBaseDetailPage` (`…/knowledge-bases/[kbId]/page.tsx`) — lists sources with status badges + add/delete controls
 - `NewKnowledgeBaseForm` / `KnowledgeBaseRowActions` (`src/components/knowledge-base-forms.tsx`) — create/rename/delete KB client controls
 - `SourceForms` / `SourceRowActions` (`src/components/source-forms.tsx`) — text/URL/file source forms + delete control
@@ -81,8 +89,11 @@
 - `extractSourceText` (`src/lib/inngest.ts`) — text inline, URL via fetch + `stripHtml`, file via R2 + `pdf-parse`
 - `embedTexts` / `embedText` (`src/lib/ai.ts`) — Gemini `embedMany`/`embed` wrappers with `outputDimensionality: 768`
 - `chatModel` (`src/lib/ai.ts`) — LLM for grounded answers; Gemini `languageModel` (`GEMINI_CHAT_MODEL`, default `gemini-2.5-flash`) or OpenRouter OpenAI-compatible chat model when `OPENROUTER_API_KEY` + `OPENROUTER_MODEL` are set
-- `retrieveChunks` / `isValidUuid` / `clampTopK` (`src/lib/retrieval.ts`) — embed query + pgvector `<=>` cosine search scoped to `kbId`, topK default 5 clamp 1–10
+- `retrieveChunks` / `isValidUuid` / `clampTopK` (`src/lib/retrieval.ts`) — embed query + pgvector `<=>` cosine search scoped to a set of `kbIds` (all attached KBs) with optional `minScore` similarity threshold, topK default 5 clamp 1–10
 - `POST query` handler (`src/app/api/knowledge-bases/[kbId]/query/route.ts`) — tenancy-guarded retrieval + `generateText` grounded answer; returns `{ answer, chunks }`
+- `loadPublishedTextAgent` / `buildAgentSystemPrompt` / `lastUserMessage` / `parseChatMessages` (`src/lib/agent-runtime.ts`) — public-runtime helpers: validate published text agent, compose grounded prompt (systemPrompt + guardrails + tone), extract current user query, validate/trim `messages`
+- `POST chat` handler (`src/app/api/public/agents/[agentId]/chat/route.ts`) — public streaming answer: `streamText` grounded in agent's KBs → `text/plain` stream; canned no-context reply when no chunks
+- `GET public agent` handler (`src/app/api/public/agents/[agentId]/route.ts`) — public metadata (id, name, status, channel, config: greeting/tone/suggestedPrompts/maxTurns)
 - `uploadToR2` / `getFromR2` / `removeFromR2` (`src/lib/r2.ts`) — R2 object storage (S3 API)
 
 ## Dependencies
@@ -116,6 +127,8 @@
 - `POST /api/knowledge-bases/:kbId/sources/upload` — multipart `file` (PDF/TXT/MD/MARKDOWN) → R2; enqueues ingestion (tenancy-guarded)
 - `DELETE /api/sources/:id` — delete source (removes R2 object if file, cascades chunks; tenancy-guarded)
 - `POST /api/knowledge-bases/:kbId/query` — embed question, pgvector retrieval, grounded answer `{ answer, chunks }` (tenancy-guarded, not gated)
+- `GET /api/public/agents/:agentId` — public metadata for a published text agent (no auth)
+- `POST /api/public/agents/:agentId/chat` — public streaming chat: `{ messages }` → `text/plain` streamed answer (no auth; 404 unless published text agent)
 - `GET/POST /api/projects/:projectId/agents` — list/create agents (multiple per project; project-KB whitelist on create) (tenancy-guarded)
 - `PUT/DELETE /api/agents/:id` — update agent fields / delete agent (tenancy-guarded; `status` not settable via PUT)
 - `POST /api/agents/:id/publish` — `{ published: boolean }` sets draft/published; 400 if publishing a shell agent (tenancy-guarded)

@@ -33,7 +33,7 @@ export async function POST(
 
   const topK = clampTopK(body?.topK);
 
-  const chunks = await retrieveChunks(kbId, question, topK);
+  const chunks = await retrieveChunks([kbId], question, topK);
 
   if (chunks.length === 0) {
     return NextResponse.json({ answer: NO_CONTEXT_ANSWER, chunks });
