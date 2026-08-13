@@ -4,8 +4,8 @@
 
 ## Current Status
 - Milestone: M3 Agent Builder (in progress)
-- Completed plans: M1 all, M2 all (01–05 archived), M3 `01-agent-schema` (archived)
-- Next plan: M3 `02-agent-crud`
+- Completed plans: M1 all, M2 all, M3 `01-agent-schema`, `02-agent-crud` (both archived)
+- Next plan: M3 `03-agent-editor-ui`
 
 ## Key Files
 - `src/app/page.tsx` — landing page (server component)
@@ -26,7 +26,7 @@
 - `src/app/api/knowledge-bases/[kbId]/query/route.ts` — POST query: guarded retrieval + grounded LLM answer (chatbot backend, not gated)
 - `src/app/(product)/dashboard/projects/[projectId]/page.tsx` — project detail / KB manager page
 - `src/app/(product)/dashboard/projects/[projectId]/knowledge-bases/[kbId]/page.tsx` — KB detail / sources page
-- `src/lib/tenancy.ts` — `requireProjectAccess` / `requireKnowledgeBaseAccess` multi-tenant guards
+- `src/lib/tenancy.ts` — `requireProjectAccess` / `requireKnowledgeBaseAccess` / `requireAgentAccess` / `filterProjectKbIds` multi-tenant guards
 - `src/lib/retrieval.ts` — `retrieveChunks` (embed + pgvector top-K), `isValidUuid`, `clampTopK`
 - `src/lib/ai.ts` — Gemini embedding model (`gemini-embedding-001`, 768 dims via `providerOptions.google.outputDimensionality`) + `embedTexts`/`embedText`; provider-agnostic `chatModel` (Gemini default / OpenRouter)
 - `src/lib/inngest.ts` — Inngest client + `chunkSource` job (extract → chunk → embed → store) + `chunkText`/`extractSourceText` + `sendKnowledgeSourceCreated`
@@ -38,7 +38,8 @@
 - `src/lib/db/auth-schema.ts` — Better Auth tables: `user`, `session`, `account`, `verification` (CLI-generated)
 - `drizzle.config.ts` — drizzle-kit config (Neon Postgres; schema list includes auth-schema)
 - `drizzle/` — generated migrations (0000 initial, 0001 auth, 0002 projects, 0003 knowledge_bases, 0004 sources + chunks, 0005 agents)
-- `docs/plan/m3-agent-builder/` — M3 plans (01 archived; 02–03 pending)
+- `docs/plan/m3-agent-builder/` — M3 plans (01–02 archived; 03 pending)
+- `src/lib/agent-validation.ts` — `parseAgentBody` shared agent field validator (create + update)
 - `components.json` — shadcn/ui config (radix-nova style, neutral base, `@/` aliases)
 - `src/lib/utils.ts` — `cn()` Tailwind class-merge helper (clsx + tailwind-merge)
 - `src/components/ui/` — shadcn components: `sidebar.tsx`, `dialog.tsx`, `button.tsx`, `input.tsx`, `separator.tsx`, `sheet.tsx`, `tooltip.tsx`, `skeleton.tsx`
@@ -63,7 +64,9 @@
 - `user`, `session`, `account`, `verification` (`src/lib/db/auth-schema.ts`) — Better Auth tables (CLI-generated)
 - `SignOutButton` (`src/components/sign-out-button.tsx`) — client sign-out control in sidebar footer
 - `GET/POST projects` handlers (`src/app/api/workspaces/[workspaceId]/projects/route.ts`) — list/create projects with session + membership guard
-- `requireProjectAccess` / `requireKnowledgeBaseAccess` (`src/lib/tenancy.ts`) — resolve project/KB → workspace → membership, 401/403/404
+- `requireProjectAccess` / `requireKnowledgeBaseAccess` / `requireAgentAccess` / `filterProjectKbIds` (`src/lib/tenancy.ts`) — resolve project/KB/agent → workspace → membership, 401/403/404; filter KB ids to a project
+- `parseAgentBody` (`src/lib/agent-validation.ts`) — validates/coerces partial agent fields for create/update
+- Agent API handlers (`src/app/api/projects/[projectId]/agents/route.ts`, `src/app/api/agents/[id]/route.ts`, `src/app/api/agents/[id]/publish/route.ts`) — list/create, update/delete, publish/unpublish (tenancy-guarded; publish requires non-empty prompt + attached KBs)
 - `GET/POST knowledge-bases` handlers (`src/app/api/projects/[projectId]/knowledge-bases/route.ts`) — list/create KBs (tenancy-guarded)
 - `PUT/DELETE knowledge-bases` handlers (`src/app/api/knowledge-bases/[kbId]/route.ts`) — rename/delete KB (tenancy-guarded)
 - `GET/POST sources` handlers (`src/app/api/knowledge-bases/[kbId]/sources/route.ts`) — list sources; create text/url source + enqueue Inngest (tenancy-guarded)
@@ -113,6 +116,9 @@
 - `POST /api/knowledge-bases/:kbId/sources/upload` — multipart `file` (PDF/TXT/MD/MARKDOWN) → R2; enqueues ingestion (tenancy-guarded)
 - `DELETE /api/sources/:id` — delete source (removes R2 object if file, cascades chunks; tenancy-guarded)
 - `POST /api/knowledge-bases/:kbId/query` — embed question, pgvector retrieval, grounded answer `{ answer, chunks }` (tenancy-guarded, not gated)
+- `GET/POST /api/projects/:projectId/agents` — list/create agents (multiple per project; project-KB whitelist on create) (tenancy-guarded)
+- `PUT/DELETE /api/agents/:id` — update agent fields / delete agent (tenancy-guarded; `status` not settable via PUT)
+- `POST /api/agents/:id/publish` — `{ published: boolean }` sets draft/published; 400 if publishing a shell agent (tenancy-guarded)
 - `GET/POST/PUT /api/inngest` — Inngest serve handler (dev + prod)
 
 ## Deployments
