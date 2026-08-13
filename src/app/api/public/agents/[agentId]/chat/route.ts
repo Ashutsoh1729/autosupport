@@ -8,6 +8,11 @@ import {
   loadPublishedTextAgent,
   parseChatMessages,
 } from "@/lib/agent-runtime";
+import {
+  optionsResponse,
+  withCors,
+  corsHeaders,
+} from "@/lib/public-cors";
 
 export const runtime = "nodejs";
 
@@ -22,12 +27,18 @@ function textStreamResponse(text: string): Response {
       controller.close();
     },
   });
-  return new Response(stream, {
-    headers: {
-      "Content-Type": "text/plain; charset=utf-8",
-      "Cache-Control": "no-store",
-    },
-  });
+  return withCors(
+    new Response(stream, {
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "no-store",
+      },
+    }),
+  );
+}
+
+export function OPTIONS() {
+  return optionsResponse();
 }
 
 export async function POST(
@@ -38,20 +49,29 @@ export async function POST(
 
   const agent = await loadPublishedTextAgent(agentId);
   if (!agent) {
-    return NextResponse.json({ error: "Agent not available" }, { status: 404 });
+    return withCors(
+      NextResponse.json({ error: "Agent not available" }, { status: 404 }),
+    );
   }
 
   const body = await request.json().catch(() => null);
   const { messages, error } = parseChatMessages(body);
   if (error || !messages) {
-    return NextResponse.json({ error: error ?? "messages is required" }, { status: 400 });
+    return withCors(
+      NextResponse.json(
+        { error: error ?? "messages is required" },
+        { status: 400 },
+      ),
+    );
   }
 
   const query = lastUserMessage(messages);
   if (!query) {
-    return NextResponse.json(
-      { error: "No user message found in history" },
-      { status: 400 },
+    return withCors(
+      NextResponse.json(
+        { error: "No user message found in history" },
+        { status: 400 },
+      ),
     );
   }
 
@@ -82,5 +102,9 @@ export async function POST(
     prompt,
   });
 
-  return result.toTextStreamResponse();
+  const response = result.toTextStreamResponse();
+  for (const [key, value] of Object.entries(corsHeaders)) {
+    response.headers.set(key, value);
+  }
+  return response;
 }
