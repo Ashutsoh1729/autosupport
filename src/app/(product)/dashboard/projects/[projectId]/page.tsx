@@ -3,9 +3,10 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { projects, knowledgeBases } from "@/lib/db/schema";
+import { projects, knowledgeBases, agents } from "@/lib/db/schema";
 import { eq, asc } from "drizzle-orm";
 import { SignOutButton } from "@/components/sign-out-button";
+import { AgentManager } from "@/components/agent-manager";
 import {
   NewKnowledgeBaseForm,
   KnowledgeBaseRowActions,
@@ -39,6 +40,12 @@ export default async function ProjectDetailPage({
     .where(eq(knowledgeBases.projectId, projectId))
     .orderBy(asc(knowledgeBases.createdAt));
 
+  const agentRows = await db
+    .select()
+    .from(agents)
+    .where(eq(agents.projectId, projectId))
+    .orderBy(asc(agents.createdAt));
+
   return (
     <div className="flex flex-1 flex-col bg-zinc-50 dark:bg-black">
       <header className="flex items-center justify-between border-b border-zinc-200 px-6 py-4 dark:border-zinc-800">
@@ -66,9 +73,15 @@ export default async function ProjectDetailPage({
               {project.name}
             </h1>
             <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-              Knowledge bases for this project
+              Agents and knowledge bases for this project
             </p>
           </div>
+
+          <AgentManager
+            projectId={project.id}
+            agents={agentRows}
+            kbs={kbRows}
+          />
 
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">

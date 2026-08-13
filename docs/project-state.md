@@ -3,9 +3,9 @@
 > Maintained by the plan-executor skill after each completed plan.
 
 ## Current Status
-- Milestone: M3 Agent Builder (in progress)
-- Completed plans: M1 all, M2 all, M3 `01-agent-schema`, `02-agent-crud` (both archived)
-- Next plan: M3 `03-agent-editor-ui`
+- Milestone: M3 Agent Builder (in progress — M3 plans all delivered, awaiting merge)
+- Completed plans: M1 all, M2 all, M3 `01-agent-schema`, `02-agent-crud`, `03-agent-editor-ui` (all archived)
+- Next plan: M4 `01-voice-runtime` (pending, once M3 PRs merge)
 
 ## Key Files
 - `src/app/page.tsx` — landing page (server component)
@@ -38,13 +38,17 @@
 - `src/lib/db/auth-schema.ts` — Better Auth tables: `user`, `session`, `account`, `verification` (CLI-generated)
 - `drizzle.config.ts` — drizzle-kit config (Neon Postgres; schema list includes auth-schema)
 - `drizzle/` — generated migrations (0000 initial, 0001 auth, 0002 projects, 0003 knowledge_bases, 0004 sources + chunks, 0005 agents)
-- `docs/plan/m3-agent-builder/` — M3 plans (01–02 archived; 03 pending)
+- `docs/plan/m3-agent-builder/` — M3 plans (01–03 archived; milestone complete)
 - `src/lib/agent-validation.ts` — `parseAgentBody` shared agent field validator (create + update)
 - `components.json` — shadcn/ui config (radix-nova style, neutral base, `@/` aliases)
 - `src/lib/utils.ts` — `cn()` Tailwind class-merge helper (clsx + tailwind-merge)
 - `src/components/ui/` — shadcn components: `sidebar.tsx`, `dialog.tsx`, `button.tsx`, `input.tsx`, `separator.tsx`, `sheet.tsx`, `tooltip.tsx`, `skeleton.tsx`
 - `src/hooks/use-mobile.ts` — `useIsMobile` matchMedia hook (shadcn sidebar dependency)
 - `src/components/dashboard-sidebar.tsx` — client sidebar (workspace header, projects nav, sign-out)
+- `src/lib/voices.ts` — static voice catalog (`VOICES`) + `LANGUAGES`
+- `src/components/agent-manager.tsx` — client wrapper lifting selected-agent state (list + editor)
+- `src/components/agent-list.tsx` — agent rows + Draft/Published badges
+- `src/components/agent-editor.tsx` — agent builder form (identity/voice/knowledge/behavior + save/publish)
 - `.env.example` — env template (`DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `GEMINI_*`, `R2_*`, `INNGEST_*`)
 - `docs/spec.md` — product specification + milestones
 - `docs/plan/m1-foundations/` — archived M1 plans
@@ -72,7 +76,8 @@
 - `GET/POST sources` handlers (`src/app/api/knowledge-bases/[kbId]/sources/route.ts`) — list sources; create text/url source + enqueue Inngest (tenancy-guarded)
 - `POST sources/upload` handler (`src/app/api/knowledge-bases/[kbId]/sources/upload/route.ts`) — multipart file upload (PDF/TXT/MD → R2, `sourceObjectKey`), enqueues Inngest
 - `DELETE source` handler (`src/app/api/sources/[id]/route.ts`) — delete source; removes R2 object for file type, cascades chunks
-- `ProjectDetailPage` (`src/app/(product)/dashboard/projects/[projectId]/page.tsx`) — KB manager page (KB names link to detail page)
+- `ProjectDetailPage` (`src/app/(product)/dashboard/projects/[projectId]/page.tsx`) — KB manager + agent builder page (AgentManager above KB list)
+- `AgentManager` / `AgentList` / `AgentEditor` (`src/components/agent-*.tsx`) — multi-agent list/selection + per-agent builder form (save/publish via plan-02 API)
 - `KnowledgeBaseDetailPage` (`…/knowledge-bases/[kbId]/page.tsx`) — lists sources with status badges + add/delete controls
 - `NewKnowledgeBaseForm` / `KnowledgeBaseRowActions` (`src/components/knowledge-base-forms.tsx`) — create/rename/delete KB client controls
 - `SourceForms` / `SourceRowActions` (`src/components/source-forms.tsx`) — text/URL/file source forms + delete control
