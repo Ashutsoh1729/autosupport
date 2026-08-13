@@ -3,9 +3,9 @@
 > Maintained by the plan-executor skill after each completed plan.
 
 ## Current Status
-- Milestone: M3 Agent Builder (in progress — plans 01–05 delivered; 06 pending)
-- Completed plans: M1 all, M2 all, M3 `01-agent-schema`, `02-agent-crud`, `03-agent-editor-ui`, `04-agent-channels`, `05-agent-text-runtime` (archived)
-- Next plan: M3 `06-agent-chat-widget` (pending), then M4 `01-voice-runtime`
+- Milestone: M3 Agent Builder (complete — plans 01–06 all delivered and archived)
+- Completed plans: M1 all, M2 all, M3 `01-agent-schema`, `02-agent-crud`, `03-agent-editor-ui`, `04-agent-channels`, `05-agent-text-runtime`, `06-agent-chat-widget` (all archived)
+- Next plan: M4 `01-voice-runtime` (pending)
 
 ## Key Files
 - `src/app/page.tsx` — landing page (server component)
@@ -27,6 +27,10 @@
 - `src/app/api/public/agents/[agentId]/route.ts` — GET public metadata for published text agents (widget bootstrap)
 - `src/app/api/public/agents/[agentId]/chat/route.ts` — POST public streaming chat: multi-KB RAG + grounded streamed answer
 - `src/lib/agent-runtime.ts` — public text-agent runtime helpers (`loadPublishedTextAgent`, `buildAgentSystemPrompt`, `lastUserMessage`, `parseChatMessages`)
+- `src/lib/public-cors.ts` — CORS headers + `withCors`/`optionsResponse` for the public API
+- `public/chat-widget.js` — zero-dependency embeddable chat widget (reads `data-agent`, streams answers)
+- `src/components/embed-agent-dialog.tsx` — copyable HTML/Next/React embed snippets
+- `src/components/test-chat-dialog.tsx` — dashboard test chat dialog (streams via public chat API)
 - `src/app/(product)/dashboard/projects/[projectId]/page.tsx` — project detail / KB manager page
 - `src/app/(product)/dashboard/projects/[projectId]/knowledge-bases/[kbId]/page.tsx` — KB detail / sources page
 - `src/lib/tenancy.ts` — `requireProjectAccess` / `requireKnowledgeBaseAccess` / `requireAgentAccess` / `filterProjectKbIds` multi-tenant guards
@@ -50,7 +54,7 @@
 - `src/components/dashboard-sidebar.tsx` — client sidebar (workspace header, projects nav, sign-out)
 - `src/lib/voices.ts` — static voice catalog (`VOICES`) + `LANGUAGES`
 - `src/components/agent-manager.tsx` — client wrapper lifting selected-agent state (list + editor)
-- `src/components/agent-list.tsx` — agent rows + Draft/Published badges
+- `src/components/agent-list.tsx` — agent rows + Draft/Published badges + Test chat/Embed actions for published text agents
 - `src/components/agent-editor.tsx` — agent builder form (identity/voice/knowledge/behavior + save/publish)
 - `.env.example` — env template (`DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `GEMINI_*`, `R2_*`, `INNGEST_*`)
 - `docs/spec.md` — product specification + milestones
@@ -94,6 +98,7 @@
 - `loadPublishedTextAgent` / `buildAgentSystemPrompt` / `lastUserMessage` / `parseChatMessages` (`src/lib/agent-runtime.ts`) — public-runtime helpers: validate published text agent, compose grounded prompt (systemPrompt + guardrails + tone), extract current user query, validate/trim `messages`
 - `POST chat` handler (`src/app/api/public/agents/[agentId]/chat/route.ts`) — public streaming answer: `streamText` grounded in agent's KBs → `text/plain` stream; canned no-context reply when no chunks
 - `GET public agent` handler (`src/app/api/public/agents/[agentId]/route.ts`) — public metadata (id, name, status, channel, config: greeting/tone/suggestedPrompts/maxTurns)
+- `AgentList` actions (`src/components/agent-list.tsx`) — Test chat (`TestChatDialog`) + Embed (`EmbedAgentDialog`) for published text agents
 - `uploadToR2` / `getFromR2` / `removeFromR2` (`src/lib/r2.ts`) — R2 object storage (S3 API)
 
 ## Dependencies
@@ -127,8 +132,8 @@
 - `POST /api/knowledge-bases/:kbId/sources/upload` — multipart `file` (PDF/TXT/MD/MARKDOWN) → R2; enqueues ingestion (tenancy-guarded)
 - `DELETE /api/sources/:id` — delete source (removes R2 object if file, cascades chunks; tenancy-guarded)
 - `POST /api/knowledge-bases/:kbId/query` — embed question, pgvector retrieval, grounded answer `{ answer, chunks }` (tenancy-guarded, not gated)
-- `GET /api/public/agents/:agentId` — public metadata for a published text agent (no auth)
-- `POST /api/public/agents/:agentId/chat` — public streaming chat: `{ messages }` → `text/plain` streamed answer (no auth; 404 unless published text agent)
+- `GET /api/public/agents/:agentId` — public metadata for a published text agent (no auth, CORS `*`)
+- `POST /api/public/agents/:agentId/chat` — public streaming chat: `{ messages }` → `text/plain` streamed answer (no auth, CORS `*`; 404 unless published text agent)
 - `GET/POST /api/projects/:projectId/agents` — list/create agents (multiple per project; project-KB whitelist on create) (tenancy-guarded)
 - `PUT/DELETE /api/agents/:id` — update agent fields / delete agent (tenancy-guarded; `status` not settable via PUT)
 - `POST /api/agents/:id/publish` — `{ published: boolean }` sets draft/published; 400 if publishing a shell agent (tenancy-guarded)
