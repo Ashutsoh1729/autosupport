@@ -43,6 +43,13 @@
       "when": 1786444347514,
       "tag": "0005_agents",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786604046446,
+      "tag": "0006_agents-channels",
+      "breakpoints": true
     }
   ]
 }

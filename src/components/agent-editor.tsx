@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import * as z from "zod";
 import { XIcon } from "lucide-react";
 
-import type { Agent } from "@/lib/db/schema";
+import type { Agent, AgentChannel, AgentConfig, VoiceConfig } from "@/lib/db/schema";
 import { VOICES, LANGUAGES } from "@/lib/voices";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,11 +39,10 @@ type KnowledgeBaseRow = { id: string; name: string; createdAt: Date };
 
 const agentSchema = z.object({
   name: z.string().trim().min(1, "Agent name is required"),
+  channel: z.enum(["text", "voice"]),
   systemPrompt: z.string(),
   guardrails: z.string(),
   examplePhrases: z.string(),
-  voiceId: z.string().min(1, "Voice is required"),
-  language: z.string().min(1, "Language is required"),
   kbIds: z.array(z.string()),
   topK: z
     .string()
@@ -58,9 +57,25 @@ const agentSchema = z.object({
     },
     "Enter a number between 0 and 1",
   ),
-  interruptionSensitivity: z.enum(["low", "medium", "high"]),
-  endCallKeyword: z.string(),
   escalationMessage: z.string(),
+  config: z.object({
+    greeting: z.string(),
+    tone: z.string(),
+    suggestedPrompts: z.string(),
+    maxTurns: z.string().refine(
+      (v) => {
+        const n = Number(v);
+        return !Number.isNaN(n) && n >= 1;
+      },
+      "Enter a positive number",
+    ),
+  }),
+  voiceConfig: z.object({
+    voiceId: z.string().min(1, "Voice is required"),
+    language: z.string().min(1, "Language is required"),
+    interruptionSensitivity: z.enum(["low", "medium", "high"]),
+    endCallKeyword: z.string(),
+  }),
 });
 
 type FormValues = z.infer<typeof agentSchema>;
@@ -75,8 +90,8 @@ function parsePhrases(input: string): string[] {
     .filter(Boolean);
 }
 
-function toExamplePhrases(agent: Agent | null): string {
-  return (agent?.examplePhrases ?? []).join(", ");
+function toCommaList(values: string[] | undefined | null): string {
+  return (values ?? []).join(", ");
 }
 
 export function AgentEditor({
@@ -92,23 +107,33 @@ export function AgentEditor({
 }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
+  const [publishing, setPublishing] = useState(false);
 
   function defaultValues(): FormValues {
+    const config = (agent?.config ?? {}) as Partial<AgentConfig>;
+    const voiceConfig = (agent?.voiceConfig ?? {}) as Partial<VoiceConfig>;
     return {
       name: agent?.name ?? "",
+      channel: (agent?.channel as AgentChannel) ?? "voice",
       systemPrompt: agent?.systemPrompt ?? "",
       guardrails: agent?.guardrails ?? "",
-      examplePhrases: toExamplePhrases(agent),
-      voiceId: agent?.voiceId || VOICE_LIST[0].id,
-      language: agent?.language || LANGUAGE_LIST[0].code,
+      examplePhrases: toCommaList(agent?.examplePhrases),
       kbIds: agent?.kbIds ?? [],
       topK: String(agent?.topK ?? 4),
       similarityThreshold: String(agent?.similarityThreshold ?? 0.3),
-      interruptionSensitivity:
-        (agent?.interruptionSensitivity as FormValues["interruptionSensitivity"]) ||
-        "medium",
-      endCallKeyword: agent?.endCallKeyword || "end call",
       escalationMessage: agent?.escalationMessage ?? "",
+      config: {
+        greeting: config.greeting ?? "",
+        tone: config.tone ?? "",
+        suggestedPrompts: toCommaList(config.suggestedPrompts),
+        maxTurns: String(config.maxTurns ?? 10),
+      },
+      voiceConfig: {
+        voiceId: voiceConfig.voiceId || VOICE_LIST[0].id,
+        language: voiceConfig.language || LANGUAGE_LIST[0].code,
+        interruptionSensitivity: voiceConfig.interruptionSensitivity || "medium",
+        endCallKeyword: voiceConfig.endCallKeyword || "end call",
+      },
     };
   }
 
@@ -127,24 +152,38 @@ export function AgentEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agent?.id, form]);
 
+  const channel = useWatch({ control: form.control, name: "channel" });
   const systemPrompt = useWatch({ control: form.control, name: "systemPrompt" });
   const kbIds = useWatch({ control: form.control, name: "kbIds" });
-  const publishDisabled = !systemPrompt.trim() || kbIds.length === 0 || saving;
+  const publishDisabled = !systemPrompt.trim() || kbIds.length === 0 || publishing;
 
   function buildPayload(values: FormValues): Record<string, unknown> {
     return {
       name: values.name,
+      channel: values.channel,
       systemPrompt: values.systemPrompt,
       guardrails: values.guardrails,
       examplePhrases: parsePhrases(values.examplePhrases),
-      voiceId: values.voiceId,
-      language: values.language,
       kbIds: values.kbIds,
       topK: Number(values.topK),
       similarityThreshold: Number(values.similarityThreshold),
-      interruptionSensitivity: values.interruptionSensitivity,
-      endCallKeyword: values.endCallKeyword,
       escalationMessage: values.escalationMessage,
+      config: {
+        greeting: values.config.greeting,
+        tone: values.config.tone,
+        suggestedPrompts: parsePhrases(values.config.suggestedPrompts),
+        maxTurns: Number(values.config.maxTurns),
+      },
+      voiceConfig:
+        values.channel === "voice"
+          ? {
+              voiceId: values.voiceConfig.voiceId,
+              language: values.voiceConfig.language,
+              interruptionSensitivity:
+                values.voiceConfig.interruptionSensitivity,
+              endCallKeyword: values.voiceConfig.endCallKeyword,
+            }
+          : null,
     };
   }
 
@@ -191,7 +230,7 @@ export function AgentEditor({
       toast.error("Attach at least one knowledge base before publishing");
       return;
     }
-    setSaving(true);
+    setPublishing(true);
     try {
       let target = agent;
       if (!target) {
@@ -212,16 +251,41 @@ export function AgentEditor({
       router.refresh();
       onSaved(data);
     } finally {
-      setSaving(false);
+      setPublishing(false);
     }
   });
 
   return (
-    <form
-      onSubmit={handleSave}
-      className="flex flex-col gap-4"
-    >
+    <form onSubmit={handleSave} className="flex flex-col gap-4">
       <FieldGroup>
+        <Controller
+          name="channel"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor="agent-channel">Agent type</FieldLabel>
+              <Select
+                name={field.name}
+                value={field.value}
+                onValueChange={field.onChange}
+              >
+                <SelectTrigger
+                  id="agent-channel"
+                  className="w-full"
+                  aria-invalid={fieldState.invalid}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent position="popper" side="bottom" avoidCollisions={false} align="start">
+                  <SelectItem value="voice">Voice agent</SelectItem>
+                  <SelectItem value="text">Text agent (chatbot)</SelectItem>
+                </SelectContent>
+              </Select>
+              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+            </Field>
+          )}
+        />
+
         <Controller
           name="name"
           control={form.control}
@@ -297,69 +361,132 @@ export function AgentEditor({
         />
       </FieldGroup>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Controller
-          name="voiceId"
-          control={form.control}
-          render={({ field, fieldState }) => (
-            <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor="agent-voice">Voice</FieldLabel>
-              <Select
-                name={field.name}
-                value={field.value}
-                onValueChange={field.onChange}
-              >
-                <SelectTrigger
-                  id="agent-voice"
-                  className="w-full"
-                  aria-invalid={fieldState.invalid}
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent position="item-aligned">
-                  {VOICE_LIST.map((v) => (
-                    <SelectItem key={v.id} value={v.id}>
-                      {v.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-            </Field>
-          )}
-        />
+      {channel === "voice" ? (
+        <FieldGroup>
+          <div className="grid grid-cols-2 gap-3">
+            <Controller
+              name="voiceConfig.voiceId"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="agent-voice">Voice</FieldLabel>
+                  <Select
+                    name={field.name}
+                    value={field.value}
+                    onValueChange={field.onChange}
+                  >
+                    <SelectTrigger
+                      id="agent-voice"
+                      className="w-full"
+                      aria-invalid={fieldState.invalid}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent position="item-aligned">
+                      {VOICE_LIST.map((v) => (
+                        <SelectItem key={v.id} value={v.id}>
+                          {v.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {fieldState.invalid && (
+                    <FieldError errors={[fieldState.error]} />
+                  )}
+                </Field>
+              )}
+            />
 
-        <Controller
-          name="language"
-          control={form.control}
-          render={({ field, fieldState }) => (
-            <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor="agent-language">Language</FieldLabel>
-              <Select
-                name={field.name}
-                value={field.value}
-                onValueChange={field.onChange}
-              >
-                <SelectTrigger
-                  id="agent-language"
-                  className="w-full"
-                  aria-invalid={fieldState.invalid}
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent position="item-aligned">
-                  {LANGUAGE_LIST.map((l) => (
-                    <SelectItem key={l.code} value={l.code}>
-                      {l.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-            </Field>
-          )}
-        />
-      </div>
+            <Controller
+              name="voiceConfig.language"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="agent-language">Language</FieldLabel>
+                  <Select
+                    name={field.name}
+                    value={field.value}
+                    onValueChange={field.onChange}
+                  >
+                    <SelectTrigger
+                      id="agent-language"
+                      className="w-full"
+                      aria-invalid={fieldState.invalid}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent position="item-aligned">
+                      {LANGUAGE_LIST.map((l) => (
+                        <SelectItem key={l.code} value={l.code}>
+                          {l.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {fieldState.invalid && (
+                    <FieldError errors={[fieldState.error]} />
+                  )}
+                </Field>
+              )}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Controller
+              name="voiceConfig.interruptionSensitivity"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="agent-interruption">
+                    Interruption sensitivity
+                  </FieldLabel>
+                  <Select
+                    name={field.name}
+                    value={field.value}
+                    onValueChange={field.onChange}
+                  >
+                    <SelectTrigger
+                      id="agent-interruption"
+                      className="w-full"
+                      aria-invalid={fieldState.invalid}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent position="item-aligned">
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {fieldState.invalid && (
+                    <FieldError errors={[fieldState.error]} />
+                  )}
+                </Field>
+              )}
+            />
+
+            <Controller
+              name="voiceConfig.endCallKeyword"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="agent-end-call">
+                    End-call keyword
+                  </FieldLabel>
+                  <Input
+                    {...field}
+                    id="agent-end-call"
+                    aria-invalid={fieldState.invalid}
+                  />
+                  {fieldState.invalid && (
+                    <FieldError errors={[fieldState.error]} />
+                  )}
+                </Field>
+              )}
+            />
+          </div>
+        </FieldGroup>
+      ) : null}
 
       <FieldGroup>
         <Controller
@@ -481,33 +608,38 @@ export function AgentEditor({
       </FieldGroup>
 
       <FieldGroup>
+        <Controller
+          name="config.greeting"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor="agent-greeting">
+                Greeting message
+              </FieldLabel>
+              <Input
+                {...field}
+                id="agent-greeting"
+                aria-invalid={fieldState.invalid}
+                placeholder="Hi! How can I help you today?"
+              />
+              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+            </Field>
+          )}
+        />
+
         <div className="grid grid-cols-2 gap-3">
           <Controller
-            name="interruptionSensitivity"
+            name="config.tone"
             control={form.control}
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="agent-interruption">
-                  Interruption sensitivity
-                </FieldLabel>
-                <Select
-                  name={field.name}
-                  value={field.value}
-                  onValueChange={field.onChange}
-                >
-                  <SelectTrigger
-                    id="agent-interruption"
-                    className="w-full"
-                    aria-invalid={fieldState.invalid}
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent position="item-aligned">
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                  </SelectContent>
-                </Select>
+                <FieldLabel htmlFor="agent-tone">Tone</FieldLabel>
+                <Input
+                  {...field}
+                  id="agent-tone"
+                  aria-invalid={fieldState.invalid}
+                  placeholder="friendly, professional, sales"
+                />
                 {fieldState.invalid && (
                   <FieldError errors={[fieldState.error]} />
                 )}
@@ -516,16 +648,16 @@ export function AgentEditor({
           />
 
           <Controller
-            name="endCallKeyword"
+            name="config.maxTurns"
             control={form.control}
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="agent-end-call">
-                  End-call keyword
-                </FieldLabel>
+                <FieldLabel htmlFor="agent-max-turns">Max turns</FieldLabel>
                 <Input
                   {...field}
-                  id="agent-end-call"
+                  id="agent-max-turns"
+                  type="number"
+                  min={1}
                   aria-invalid={fieldState.invalid}
                 />
                 {fieldState.invalid && (
@@ -535,6 +667,25 @@ export function AgentEditor({
             )}
           />
         </div>
+
+        <Controller
+          name="config.suggestedPrompts"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor="agent-suggested-prompts">
+                Suggested prompts (comma separated)
+              </FieldLabel>
+              <Input
+                {...field}
+                id="agent-suggested-prompts"
+                aria-invalid={fieldState.invalid}
+                placeholder="What are your pricing plans?, Do you offer refunds?"
+              />
+              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+            </Field>
+          )}
+        />
 
         <Controller
           name="escalationMessage"
@@ -558,18 +709,18 @@ export function AgentEditor({
       </FieldGroup>
 
       <div className="flex items-center gap-3">
-        <Button type="submit" disabled={saving}>
+        <Button type="submit" disabled={saving || publishing}>
           {saving ? "Saving..." : "Save"}
         </Button>
         <Button
           type="button"
           onClick={handlePublish}
-          disabled={publishDisabled}
+          disabled={publishDisabled || saving}
           className="bg-emerald-600 text-white hover:bg-emerald-500"
         >
-          {saving ? "Publishing..." : "Publish"}
+          {publishing ? "Publishing..." : "Publish"}
         </Button>
-        {publishDisabled && !saving ? (
+        {publishDisabled && !publishing && !saving ? (
           <span className="text-sm text-zinc-500 dark:text-zinc-400">
             {!systemPrompt.trim()
               ? "Needs a system prompt"

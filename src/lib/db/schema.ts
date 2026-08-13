@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, integer, real, uniqueIndex, vector, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, integer, real, uniqueIndex, vector, index, jsonb } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { user } from "@/lib/db/auth-schema";
 
@@ -49,17 +49,18 @@ export const agents = pgTable(
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
     name: text("name").notNull().default("Support Agent"),
+    channel: text("channel", { enum: ["text", "voice"] })
+      .notNull()
+      .default("voice"),
     systemPrompt: text("system_prompt").notNull().default(""),
     guardrails: text("guardrails").notNull().default(""),
     examplePhrases: text("example_phrases").array().notNull().default(sql`'{}'::text[]`),
-    voiceId: text("voice_id").notNull().default("aura-asteria-en"),
-    language: text("language").notNull().default("en"),
     kbIds: uuid("kb_ids").array().notNull().default(sql`'{}'::uuid[]`),
     topK: integer("top_k").notNull().default(4),
     similarityThreshold: real("similarity_threshold").notNull().default(0.3),
-    interruptionSensitivity: text("interruption_sensitivity").notNull().default("medium"),
-    endCallKeyword: text("end_call_keyword").notNull().default("end call"),
     escalationMessage: text("escalation_message").notNull().default(""),
+    config: jsonb("config").notNull().default(sql`'{}'::jsonb`),
+    voiceConfig: jsonb("voice_config"),
     status: text("status", { enum: ["draft", "published"] }).notNull().default("draft"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
@@ -108,5 +109,18 @@ export type Membership = typeof memberships.$inferSelect;
 export type Project = typeof projects.$inferSelect;
 export type KnowledgeBase = typeof knowledgeBases.$inferSelect;
 export type Agent = typeof agents.$inferSelect;
+export type AgentChannel = "text" | "voice";
+export type AgentConfig = {
+  greeting: string;
+  tone: string;
+  suggestedPrompts: string[];
+  maxTurns: number;
+};
+export type VoiceConfig = {
+  voiceId: string;
+  language: string;
+  interruptionSensitivity: "low" | "medium" | "high";
+  endCallKeyword: string;
+};
 export type KnowledgeSource = typeof knowledgeSources.$inferSelect;
 export type Chunk = typeof chunks.$inferSelect;

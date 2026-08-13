@@ -1,21 +1,107 @@
-export function parseAgentBody(body: Record<string, unknown>): {
+type AgentBody = Record<string, unknown>;
+
+type ParseResult = {
   values: Record<string, unknown>;
   error?: string;
-} {
+};
+
+const CHANNELS = ["text", "voice"] as const;
+
+function asString(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+function parseAgentConfig(raw: unknown):
+  | { config: Record<string, unknown> }
+  | { error: string } {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+    return { error: "config must be an object" };
+  }
+  const obj = raw as Record<string, unknown>;
+  const config: Record<string, unknown> = {};
+
+  if (obj.greeting !== undefined) {
+    config.greeting = asString(obj.greeting);
+  }
+  if (obj.tone !== undefined) {
+    config.tone = asString(obj.tone);
+  }
+  if (obj.suggestedPrompts !== undefined) {
+    if (!Array.isArray(obj.suggestedPrompts)) {
+      return { error: "config.suggestedPrompts must be an array" };
+    }
+    config.suggestedPrompts = obj.suggestedPrompts.filter(
+      (p): p is string => typeof p === "string",
+    );
+  }
+  if (obj.maxTurns !== undefined) {
+    const maxTurns = typeof obj.maxTurns === "number" ? Math.round(obj.maxTurns) : NaN;
+    if (Number.isNaN(maxTurns) || maxTurns < 1) {
+      return { error: "config.maxTurns must be a positive number" };
+    }
+    config.maxTurns = maxTurns;
+  }
+
+  return { config };
+}
+
+function parseVoiceConfig(raw: unknown):
+  | { voiceConfig: Record<string, unknown> }
+  | { error: string } {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+    return { error: "voiceConfig must be an object" };
+  }
+  const obj = raw as Record<string, unknown>;
+  const voiceConfig: Record<string, unknown> = {};
+
+  if (obj.voiceId !== undefined) {
+    voiceConfig.voiceId = asString(obj.voiceId);
+  }
+  if (obj.language !== undefined) {
+    voiceConfig.language = asString(obj.language);
+  }
+  if (obj.interruptionSensitivity !== undefined) {
+    const level = obj.interruptionSensitivity;
+    if (
+      typeof level !== "string" ||
+      !["low", "medium", "high"].includes(level)
+    ) {
+      return {
+        error: "interruptionSensitivity must be low, medium or high",
+      };
+    }
+    voiceConfig.interruptionSensitivity = level;
+  }
+  if (obj.endCallKeyword !== undefined) {
+    voiceConfig.endCallKeyword = asString(obj.endCallKeyword);
+  }
+
+  return { voiceConfig };
+}
+
+export function parseAgentBody(body: AgentBody): ParseResult {
   const values: Record<string, unknown> = {};
 
   if (body.name !== undefined) {
-    const name = typeof body.name === "string" ? body.name.trim() : "";
+    const name = asString(body.name).trim();
     if (!name) return { values, error: "Agent name is required" };
     values.name = name;
   }
-  if (body.systemPrompt !== undefined) {
-    values.systemPrompt =
-      typeof body.systemPrompt === "string" ? body.systemPrompt : "";
+
+  if (body.channel !== undefined) {
+    const channel = body.channel;
+    if (typeof channel !== "string" || !CHANNELS.includes(channel as never)) {
+      return { values, error: "channel must be text or voice" };
+    }
+    values.channel = channel;
   }
-  if (body.guardrails !== undefined) {
-    values.guardrails = typeof body.guardrails === "string" ? body.guardrails : "";
+
+  for (const key of ["systemPrompt", "guardrails", "escalationMessage"] as const) {
+    if (body[key] !== undefined) {
+      values[key] = asString(body[key]);
+    }
   }
+
   if (body.examplePhrases !== undefined) {
     if (!Array.isArray(body.examplePhrases)) {
       return { values, error: "examplePhrases must be an array" };
@@ -24,18 +110,14 @@ export function parseAgentBody(body: Record<string, unknown>): {
       (p): p is string => typeof p === "string",
     );
   }
-  if (body.voiceId !== undefined) {
-    values.voiceId = typeof body.voiceId === "string" ? body.voiceId : "";
-  }
-  if (body.language !== undefined) {
-    values.language = typeof body.language === "string" ? body.language : "";
-  }
+
   if (body.kbIds !== undefined) {
     if (!Array.isArray(body.kbIds)) {
       return { values, error: "kbIds must be an array" };
     }
     values.kbIds = body.kbIds.filter((id): id is string => typeof id === "string");
   }
+
   if (body.topK !== undefined) {
     const topK = typeof body.topK === "number" ? Math.round(body.topK) : NaN;
     if (Number.isNaN(topK) || topK < 1) {
@@ -43,6 +125,7 @@ export function parseAgentBody(body: Record<string, unknown>): {
     }
     values.topK = Math.min(topK, 10);
   }
+
   if (body.similarityThreshold !== undefined) {
     const threshold =
       typeof body.similarityThreshold === "number"
@@ -53,20 +136,19 @@ export function parseAgentBody(body: Record<string, unknown>): {
     }
     values.similarityThreshold = threshold;
   }
-  if (body.interruptionSensitivity !== undefined) {
-    const level = body.interruptionSensitivity;
-    if (typeof level !== "string" || !["low", "medium", "high"].includes(level)) {
-      return { values, error: "interruptionSensitivity must be low, medium or high" };
-    }
-    values.interruptionSensitivity = level;
+
+  if (body.config !== undefined) {
+    const result = parseAgentConfig(body.config);
+    if ("error" in result) return { values, error: result.error };
+    values.config = result.config;
   }
-  if (body.endCallKeyword !== undefined) {
-    values.endCallKeyword =
-      typeof body.endCallKeyword === "string" ? body.endCallKeyword : "";
-  }
-  if (body.escalationMessage !== undefined) {
-    values.escalationMessage =
-      typeof body.escalationMessage === "string" ? body.escalationMessage : "";
+
+  if (body.voiceConfig !== undefined && body.voiceConfig !== null) {
+    const result = parseVoiceConfig(body.voiceConfig);
+    if ("error" in result) return { values, error: result.error };
+    values.voiceConfig = result.voiceConfig;
+  } else if (body.voiceConfig === null) {
+    values.voiceConfig = null;
   }
 
   return { values };
