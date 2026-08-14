@@ -1,7 +1,7 @@
 # Voice Infra & Test Token
 
-Status: Pending
-Branch: plan/m4-voice-runtime
+Status: In Progress
+Branch: plan/m4/01-voice-infra
 
 ## Description
 Wire the M4 voice-runtime foundation: LiveKit Cloud credentials (free Build tier),
@@ -27,24 +27,24 @@ test console (plan 03) and the voice agent worker (plan 02) use to join the same
 ## Implementation Steps
 
 ### Step 1: Env & dependency
-- [ ] Add to `.env.example`: `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `DEEPGRAM_API_KEY`.
-- [ ] `npm install livekit-server-sdk`.
+- [x] Add to `.env.example`: `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `DEEPGRAM_API_KEY`.
+- [x] `npm install livekit-server-sdk`.
 
 ### Step 2: LiveKit helper
-- [ ] Create `src/lib/livekit.ts` exporting `createVoiceSession(agentId: string)`.
-- [ ] Build `{ url, room, token }`: room name like `agent-<agentId>-<timestamp>`, token with
+- [x] Create `src/lib/livekit.ts` exporting `createVoiceSession(agentId: string)`.
+- [x] Build `{ url, room, token }`: room name like `agent-<agentId>-<timestamp>`, token with
       `AccessToken({ identity, ttl: "15m", apiKey, apiSecret })` and grants to join/publish/subscribe
       the room. Read env from `process.env`.
-- [ ] Export `roomUrl`, `livekitApiKey`, `livekitApiSecret` getters with a clear error when unset.
+- [x] Export `roomUrl`, `livekitApiKey`, `livekitApiSecret` getters with a clear error when unset.
 
 ### Step 3: Test-token route
-- [ ] Create `src/app/api/agents/[id]/test-token/route.ts` (POST).
-- [ ] Reuse `requireAgentAccess` (in `src/lib/tenancy.ts`) for ownership; 404 when missing.
-- [ ] Require `agent.channel === "voice"` and `agent.status === "published"`; else 400 with a clear message.
-- [ ] Return `NextResponse.json(await createVoiceSession(agent.id))`.
+- [x] Create `src/app/api/agents/[id]/test-token/route.ts` (POST).
+- [x] Reuse `requireAgentAccess` (in `src/lib/tenancy.ts`) for ownership; 404 when missing.
+- [x] Require `agent.channel === "voice"` and `agent.status === "published"`; else 400 with a clear message.
+- [x] Return `NextResponse.json(await createVoiceSession(agent.id))`.
 
 ### Step 4: Verify
-- [ ] `npm run build` and `npm run lint` pass.
+- [x] `npm run build` and `npm run lint` pass.
 - [ ] Start dev server; sign in; curl the endpoint for a published voice agent → assert 200 with
       `{ url, room, token }`; assert 400 for draft/text agents and 404 for unknown ids.
 
