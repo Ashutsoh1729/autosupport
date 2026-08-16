@@ -1,7 +1,7 @@
 # Voice Agent Worker (LiveKit)
 
-Status: Pending
-Branch: plan/m4-voice-runtime
+Status: Complete (live-verified end-to-end)
+Branch: plan/m4/02-voice-worker
 
 ## Description
 A standalone LiveKit agent worker that joins the room issued by plan 01 and runs the
@@ -31,34 +31,42 @@ and behaves per its configuration.
 ## Implementation Steps
 
 ### Step 1: Dependencies & worker skeleton
-- [ ] `npm install @livekit/agents @livekit/rtc-node @livekit/agents-plugin-deepgram`
-- [ ] Create `src/voice-agent/worker.ts` registering a LiveKit `Worker` on `LIVEKIT_URL` using the API key/secret.
-- [ ] Add `voice-agent: shell: "npx tsx src/voice-agent/worker.ts"` to `mprocs.yaml`.
+- [x] `npm install @livekit/agents @livekit/rtc-node @livekit/agents-plugin-deepgram`
+- [x] Create `src/voice-agent/worker.ts` registering a LiveKit `Worker` on `LIVEKIT_URL` using the API key/secret.
+      (v1.6.3 API: `defineAgent` + `cli.runApp(new ServerOptions(...))`; the CLI needs the `start` subcommand, so the
+      mprocs command is `npx tsx src/voice-agent/worker.ts start`.)
+- [x] Add `voice-agent: shell: "npx tsx src/voice-agent/worker.ts start"` to `mprocs.yaml`.
 
 ### Step 2: Agent loading
-- [ ] Add `loadPublishedVoiceAgent(agentId)` in `src/lib/agent-runtime.ts` (mirror `loadPublishedTextAgent`)
+- [x] Add `loadPublishedVoiceAgent(agentId)` in `src/lib/agent-runtime.ts` (mirror `loadPublishedTextAgent`)
       returning the full agent row for a published `voice` agent or `null`.
-- [ ] Derive voice settings (Deepgram voice id, language, interruption sensitivity, end-call keyword)
-      from `agent.voiceConfig`; derive greeting/escalation from `agent.config`.
+- [x] Derive voice settings (Deepgram voice id, language, interruption sensitivity, end-call keyword)
+      from `agent.voiceConfig`; derive greeting/escalation from `agent.config` (with safe defaults).
 
 ### Step 3: LLM + RAG callback
-- [ ] Create `src/lib/voice-answer.ts` exporting `answerTurn(query, agent, history)` that:
+- [x] Create `src/lib/voice-answer.ts` exporting `answerTurn(query, agent, history)` that:
       calls `retrieveChunks(agent.kbIds, query, agent.topK, agent.similarityThreshold)`,
       builds the system prompt via `buildAgentSystemPrompt(agent)` (reuse from M3),
       and returns the `chatModel` streaming reply.
-- [ ] Return the canned `escalationMessage` streamed when zero chunks retrieved.
+- [x] Return the canned `escalationMessage` streamed when zero chunks retrieved
+      (`resolveEscalationMessage` prefers the agent's `escalationMessage` column, then `config.escalationMessage`).
 
 ### Step 4: Wire the pipeline
-- [ ] In `worker.ts`, configure `VoicePipelineAgent` with Deepgram STT (`nova-3`), Deepgram TTS (`aura-2`),
-      and the `answerTurn` callback; enable turn-detection/barge-in per `voiceConfig`.
-- [ ] Speak greeting on session start; watch for the end-call keyword to terminate.
-- [ ] Ensure the worker cleans up (close agent, end room) on disconnect.
+- [x] In `worker.ts`, configure the voice pipeline with Deepgram STT (`nova-3`, `nova-3-multilingual` for non-English),
+      Deepgram TTS (`aura-2`, mapped from the agent's voice id), and the `answerTurn` callback via an
+      `AgentSession` + `Agent.create` `onUserTurnCompleted` hook (the v1.6.3 replacement for `VoicePipelineAgent`);
+      enable turn-detection/barge-in per `voiceConfig` (`turnHandling.interruption`).
+- [x] Speak greeting on session start; watch for the end-call keyword to terminate.
+- [x] Ensure the worker cleans up (close agent, end room) on disconnect
+      (`deleteRoomOnClose` + shutdown callback + waiting on the session close event).
 
 ### Step 5: Verify
-- [ ] `npm run build` and `npm run lint` pass.
-- [ ] Start `mprocs`; confirm the worker logs "ready" and connects to LiveKit.
-- [ ] With the test console (plan 03) or `livekit-cli`, place a call and confirm the agent greets,
-      answers a RAG-grounded question, escalates on empty retrieval, and ends on the keyword.
+- [x] `npm run build` and `npm run lint` pass.
+- [x] Start the worker; confirm it logs "ready" and registers with LiveKit Cloud (ran `npx tsx --env-file=.env src/voice-agent/worker.ts start` with LIVEKIT_* and DEEPGRAM keys; the `mprocs` `voice-agent` entry uses the same command).
+- [x] Place a call (test caller + `livekit-cli`, standing in for plan 03's console) and confirm the agent greets,
+      answers a RAG-grounded question, escalates on empty retrieval, and ends on the keyword — all four
+      verified live: greeting "Hi. This is a sales agent...", RAG answer about the autosupport test kit,
+      escalation fallback when the KB was empty, and room close on "end call".
 
 ---
 

@@ -3,9 +3,9 @@
 > Maintained by the plan-executor skill after each completed plan.
 
 ## Current Status
-- Milestone: M3 Agent Builder (complete — plans 01–06 all delivered and archived)
-- Completed plans: M1 all, M2 all, M3 `01-agent-schema`, `02-agent-crud`, `03-agent-editor-ui`, `04-agent-channels`, `05-agent-text-runtime`, `06-agent-chat-widget` (all archived)
-- Next plan: M4 `01-voice-runtime` (pending)
+- Milestone: M4 Voice Runtime (in progress — plan `01-voice-infra` shipped, plan `02-voice-agent-worker` complete and live-verified end-to-end)
+- Completed plans: M1 all, M2 all, M3 `01-agent-schema`, `02-agent-crud`, `03-agent-editor-ui`, `04-agent-channels`, `05-agent-text-runtime`, `06-agent-chat-widget` (all archived); M4 `01-voice-infra` (in progress), `02-voice-agent-worker` (complete, live-verified)
+- Next plan: M4 `03-voice-test-console` (pending)
 
 ## Key Files
 - `src/app/page.tsx` — landing page (server component)
@@ -26,7 +26,12 @@
 - `src/app/api/knowledge-bases/[kbId]/query/route.ts` — POST query: guarded retrieval + grounded LLM answer (chatbot backend, not gated)
 - `src/app/api/public/agents/[agentId]/route.ts` — GET public metadata for published text agents (widget bootstrap)
 - `src/app/api/public/agents/[agentId]/chat/route.ts` — POST public streaming chat: multi-KB RAG + grounded streamed answer
-- `src/lib/agent-runtime.ts` — public text-agent runtime helpers (`loadPublishedTextAgent`, `buildAgentSystemPrompt`, `lastUserMessage`, `parseChatMessages`)
+- `src/lib/livekit.ts` — LiveKit session helper (`createVoiceSession` → `{ url, room, token }`, `roomUrl`/`livekitApiKey`/`livekitApiSecret` with fail-fast env errors)
+- `src/app/api/agents/[id]/test-token/route.ts` — POST issue voice session token (tenancy-guarded; 400 unless published voice agent)
+- `src/voice-agent/worker.ts` — LiveKit voice agent worker (`defineAgent` + `cli.runApp(new ServerOptions(...))`); joins `agent-<agentId>-<epoch>` rooms via dispatch, runs `AgentSession` (Deepgram STT `nova-3`/`nova-3-multilingual`, TTS `aura-2`) with an `Agent.create` `onUserTurnCompleted` hook; greeting, end-call keyword, interruption sensitivity, `deleteRoomOnClose`
+- `src/lib/voice-answer.ts` — `answerTurn(query, agent, history)` RAG→LLM streaming answer (reuses `retrieveChunks` + `buildAgentSystemPrompt`); `resolveEscalationMessage` fallback when no chunks
+- `src/lib/agent-runtime.ts` — public text-agent runtime helpers (`loadPublishedTextAgent`, `loadPublishedVoiceAgent`, `buildAgentSystemPrompt`, `lastUserMessage`, `parseChatMessages`)
+- `mprocs.yaml` — dev processes: `next`, `inngest`, `voice-agent` (`npx tsx src/voice-agent/worker.ts start`)
 - `src/lib/public-cors.ts` — CORS headers + `withCors`/`optionsResponse` for the public API
 - `public/chat-widget.js` — zero-dependency embeddable chat widget (reads `data-agent`, streams answers)
 - `src/components/embed-agent-dialog.tsx` — copyable HTML/Next/React embed snippets
@@ -118,6 +123,8 @@
 - `OPENROUTER_API_KEY` / `OPENROUTER_MODEL` / `OPENROUTER_BASE_URL` — optional: route the chat model through OpenRouter (OpenAI-compatible) instead of Gemini
 - `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` — Cloudflare R2 (S3 API) for file sources
 - `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY` — Inngest cloud keys (optional for dev); `INNGEST_DEV=1` for local dev server
+- `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` — LiveKit Cloud (Build tier) URL + API credentials for the voice runtime (`src/lib/livekit.ts`, `src/voice-agent/worker.ts`)
+- `DEEPGRAM_API_KEY` — Deepgram key for voice agent STT/TTS (`src/voice-agent/worker.ts`)
 
 ## API Endpoints
 - `GET/POST /api/auth/*` — Better Auth endpoints (sign-up, sign-in, sign-out, get-session, etc.)
@@ -137,6 +144,7 @@
 - `GET/POST /api/projects/:projectId/agents` — list/create agents (multiple per project; project-KB whitelist on create) (tenancy-guarded)
 - `PUT/DELETE /api/agents/:id` — update agent fields / delete agent (tenancy-guarded; `status` not settable via PUT)
 - `POST /api/agents/:id/publish` — `{ published: boolean }` sets draft/published; 400 if publishing a shell agent (tenancy-guarded)
+- `POST /api/agents/:id/test-token` — issue a LiveKit voice session `{ url, room, token }` for a published voice agent (tenancy-guarded; 400 for draft/non-voice agents)
 - `GET/POST/PUT /api/inngest` — Inngest serve handler (dev + prod)
 
 ## Deployments
