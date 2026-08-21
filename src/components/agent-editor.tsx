@@ -8,7 +8,12 @@ import { toast } from "sonner";
 import * as z from "zod";
 import { XIcon } from "lucide-react";
 
-import type { Agent, AgentChannel, AgentConfig, VoiceConfig } from "@/lib/db/schema";
+import type {
+  Agent,
+  AgentChannel,
+  AgentConfig,
+  VoiceConfig,
+} from "@/lib/db/schema";
 import { VOICES, LANGUAGES } from "@/lib/voices";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,31 +49,23 @@ const agentSchema = z.object({
   guardrails: z.string(),
   examplePhrases: z.string(),
   kbIds: z.array(z.string()),
-  topK: z
-    .string()
-    .refine((v) => {
-      const n = Number(v);
-      return !Number.isNaN(n) && n >= 1 && n <= 10;
-    }, "Enter a number between 1 and 10"),
-  similarityThreshold: z.string().refine(
-    (v) => {
-      const n = Number(v);
-      return !Number.isNaN(n) && n >= 0 && n <= 1;
-    },
-    "Enter a number between 0 and 1",
-  ),
+  topK: z.string().refine((v) => {
+    const n = Number(v);
+    return !Number.isNaN(n) && n >= 1 && n <= 10;
+  }, "Enter a number between 1 and 10"),
+  similarityThreshold: z.string().refine((v) => {
+    const n = Number(v);
+    return !Number.isNaN(n) && n >= 0 && n <= 1;
+  }, "Enter a number between 0 and 1"),
   escalationMessage: z.string(),
   config: z.object({
     greeting: z.string(),
     tone: z.string(),
     suggestedPrompts: z.string(),
-    maxTurns: z.string().refine(
-      (v) => {
-        const n = Number(v);
-        return !Number.isNaN(n) && n >= 1;
-      },
-      "Enter a positive number",
-    ),
+    maxTurns: z.string().refine((v) => {
+      const n = Number(v);
+      return !Number.isNaN(n) && n >= 1;
+    }, "Enter a positive number"),
   }),
   voiceConfig: z.object({
     voiceId: z.string().min(1, "Voice is required"),
@@ -131,7 +128,8 @@ export function AgentEditor({
       voiceConfig: {
         voiceId: voiceConfig.voiceId || VOICE_LIST[0].id,
         language: voiceConfig.language || LANGUAGE_LIST[0].code,
-        interruptionSensitivity: voiceConfig.interruptionSensitivity || "medium",
+        interruptionSensitivity:
+          voiceConfig.interruptionSensitivity || "medium",
         endCallKeyword: voiceConfig.endCallKeyword || "end call",
       },
     };
@@ -153,9 +151,13 @@ export function AgentEditor({
   }, [agent?.id, form]);
 
   const channel = useWatch({ control: form.control, name: "channel" });
-  const systemPrompt = useWatch({ control: form.control, name: "systemPrompt" });
+  const systemPrompt = useWatch({
+    control: form.control,
+    name: "systemPrompt",
+  });
   const kbIds = useWatch({ control: form.control, name: "kbIds" });
-  const publishDisabled = !systemPrompt.trim() || kbIds.length === 0 || publishing;
+  const publishDisabled =
+    !systemPrompt.trim() || kbIds.length === 0 || publishing;
 
   function buildPayload(values: FormValues): Record<string, unknown> {
     return {
@@ -276,7 +278,12 @@ export function AgentEditor({
                 >
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent position="popper" side="bottom" avoidCollisions={false} align="start">
+                <SelectContent
+                  position="popper"
+                  side="bottom"
+                  avoidCollisions={false}
+                  align="start"
+                >
                   <SelectItem value="voice">Voice agent</SelectItem>
                   <SelectItem value="text">Text agent (chatbot)</SelectItem>
                 </SelectContent>
@@ -489,6 +496,8 @@ export function AgentEditor({
       ) : null}
 
       <FieldGroup>
+        {/* BUG: Here the kb is not getting selected even after clicking on it  */}
+
         <Controller
           name="kbIds"
           control={form.control}
@@ -533,7 +542,7 @@ export function AgentEditor({
                       items={kbs}
                       multiple
                       itemToStringValue={(kb) => kb.name}
-                      value={selected}
+                      value={kbs.filter((kb) => field.value?.includes(kb.id))}
                       onValueChange={(items: KnowledgeBaseRow[]) =>
                         field.onChange(items.map((kb) => kb.id))
                       }
@@ -613,9 +622,7 @@ export function AgentEditor({
           control={form.control}
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor="agent-greeting">
-                Greeting message
-              </FieldLabel>
+              <FieldLabel htmlFor="agent-greeting">Greeting message</FieldLabel>
               <Input
                 {...field}
                 id="agent-greeting"
