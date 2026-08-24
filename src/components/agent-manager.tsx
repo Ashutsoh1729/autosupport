@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 import type { Agent } from "@/lib/db/schema";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { AgentList } from "@/components/agent-list";
 import { AgentEditor } from "@/components/agent-editor";
 
@@ -71,7 +76,7 @@ export function AgentManager({
         onDeleted={handleDeleted}
       />
 
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen} modal={false}>
         <SheetContent
           side="right"
           className="data-[side=right]:w-full data-[side=right]:sm:max-w-[50vw] overflow-y-auto"

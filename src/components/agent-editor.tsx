@@ -90,7 +90,6 @@ function parsePhrases(input: string): string[] {
 function toCommaList(values: string[] | undefined | null): string {
   return (values ?? []).join(", ");
 }
-
 export function AgentEditor({
   projectId,
   agent,
@@ -105,6 +104,9 @@ export function AgentEditor({
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [selectedKbIds, setSelectedKbIds] = useState<string[]>(
+    agent?.kbIds ?? [],
+  );
 
   function defaultValues(): FormValues {
     const config = (agent?.config ?? {}) as Partial<AgentConfig>;
@@ -145,6 +147,7 @@ export function AgentEditor({
     const id = agent?.id ?? null;
     if (id !== editingId.current) {
       editingId.current = id;
+      setSelectedKbIds(agent?.kbIds ?? []);
       form.reset(defaultValues());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -155,9 +158,8 @@ export function AgentEditor({
     control: form.control,
     name: "systemPrompt",
   });
-  const kbIds = useWatch({ control: form.control, name: "kbIds" });
   const publishDisabled =
-    !systemPrompt.trim() || kbIds.length === 0 || publishing;
+    !systemPrompt.trim() || selectedKbIds.length === 0 || publishing;
 
   function buildPayload(values: FormValues): Record<string, unknown> {
     return {
@@ -228,7 +230,7 @@ export function AgentEditor({
       toast.error("Agent needs a system prompt before publishing");
       return;
     }
-    if (values.kbIds.length === 0) {
+    if (selectedKbIds.length === 0) {
       toast.error("Attach at least one knowledge base before publishing");
       return;
     }
@@ -259,230 +261,370 @@ export function AgentEditor({
 
   return (
     <form onSubmit={handleSave} className="flex flex-col gap-4">
-      <FieldGroup>
-        <Controller
-          name="channel"
-          control={form.control}
-          render={({ field, fieldState }) => (
-            <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor="agent-channel">Agent type</FieldLabel>
-              <Select
-                name={field.name}
-                value={field.value}
-                onValueChange={field.onChange}
-              >
-                <SelectTrigger
-                  id="agent-channel"
-                  className="w-full"
-                  aria-invalid={fieldState.invalid}
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent
-                  position="popper"
-                  side="bottom"
-                  avoidCollisions={false}
-                  align="start"
-                >
-                  <SelectItem value="voice">Voice agent</SelectItem>
-                  <SelectItem value="text">Text agent (chatbot)</SelectItem>
-                </SelectContent>
-              </Select>
-              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-            </Field>
-          )}
-        />
-
-        <Controller
-          name="name"
-          control={form.control}
-          render={({ field, fieldState }) => (
-            <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor="agent-name">Name</FieldLabel>
-              <Input
-                {...field}
-                id="agent-name"
-                aria-invalid={fieldState.invalid}
-                placeholder="Refunds Agent"
-              />
-              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-            </Field>
-          )}
-        />
-
-        <Controller
-          name="systemPrompt"
-          control={form.control}
-          render={({ field, fieldState }) => (
-            <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor="agent-system-prompt">
-                System prompt
-              </FieldLabel>
-              <Textarea
-                {...field}
-                id="agent-system-prompt"
-                aria-invalid={fieldState.invalid}
-                rows={5}
-                placeholder="You are a helpful support agent for..."
-              />
-              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-            </Field>
-          )}
-        />
-
-        <Controller
-          name="examplePhrases"
-          control={form.control}
-          render={({ field, fieldState }) => (
-            <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor="agent-example-phrases">
-                Example phrases (comma separated)
-              </FieldLabel>
-              <Input
-                {...field}
-                id="agent-example-phrases"
-                aria-invalid={fieldState.invalid}
-                placeholder="How can I refund this?, Shipping times"
-              />
-              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-            </Field>
-          )}
-        />
-
-        <Controller
-          name="guardrails"
-          control={form.control}
-          render={({ field, fieldState }) => (
-            <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor="agent-guardrails">Guardrails</FieldLabel>
-              <Textarea
-                {...field}
-                id="agent-guardrails"
-                aria-invalid={fieldState.invalid}
-                rows={3}
-                placeholder="Never promise discounts, always confirm order numbers..."
-              />
-              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-            </Field>
-          )}
-        />
-      </FieldGroup>
-
-      {channel === "voice" ? (
+      <div>
         <FieldGroup>
+          <Controller
+            name="channel"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor="agent-channel">Agent type</FieldLabel>
+                <Select
+                  name={field.name}
+                  value={field.value}
+                  onValueChange={field.onChange}
+                >
+                  <SelectTrigger
+                    id="agent-channel"
+                    className="w-full"
+                    aria-invalid={fieldState.invalid}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent
+                    position="popper"
+                    side="bottom"
+                    avoidCollisions={false}
+                    align="start"
+                  >
+                    <SelectItem value="voice">Voice agent</SelectItem>
+                    <SelectItem value="text">Text agent (chatbot)</SelectItem>
+                  </SelectContent>
+                </Select>
+                {fieldState.invalid && (
+                  <FieldError errors={[fieldState.error]} />
+                )}
+              </Field>
+            )}
+          />
+
+          <Controller
+            name="name"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor="agent-name">Name</FieldLabel>
+                <Input
+                  {...field}
+                  id="agent-name"
+                  aria-invalid={fieldState.invalid}
+                  placeholder="Refunds Agent"
+                />
+                {fieldState.invalid && (
+                  <FieldError errors={[fieldState.error]} />
+                )}
+              </Field>
+            )}
+          />
+
+          <Controller
+            name="systemPrompt"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor="agent-system-prompt">
+                  System prompt
+                </FieldLabel>
+                <Textarea
+                  {...field}
+                  id="agent-system-prompt"
+                  aria-invalid={fieldState.invalid}
+                  rows={5}
+                  placeholder="You are a helpful support agent for..."
+                />
+                {fieldState.invalid && (
+                  <FieldError errors={[fieldState.error]} />
+                )}
+              </Field>
+            )}
+          />
+
+          <Controller
+            name="examplePhrases"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor="agent-example-phrases">
+                  Example phrases (comma separated)
+                </FieldLabel>
+                <Input
+                  {...field}
+                  id="agent-example-phrases"
+                  aria-invalid={fieldState.invalid}
+                  placeholder="How can I refund this?, Shipping times"
+                />
+                {fieldState.invalid && (
+                  <FieldError errors={[fieldState.error]} />
+                )}
+              </Field>
+            )}
+          />
+
+          <Controller
+            name="guardrails"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor="agent-guardrails">Guardrails</FieldLabel>
+                <Textarea
+                  {...field}
+                  id="agent-guardrails"
+                  aria-invalid={fieldState.invalid}
+                  rows={3}
+                  placeholder="Never promise discounts, always confirm order numbers..."
+                />
+                {fieldState.invalid && (
+                  <FieldError errors={[fieldState.error]} />
+                )}
+              </Field>
+            )}
+          />
+        </FieldGroup>
+
+        {channel === "voice" ? (
+          <FieldGroup>
+            <div className="grid grid-cols-2 gap-3">
+              <Controller
+                name="voiceConfig.voiceId"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="agent-voice">Voice</FieldLabel>
+                    <Select
+                      name={field.name}
+                      value={field.value}
+                      onValueChange={field.onChange}
+                    >
+                      <SelectTrigger
+                        id="agent-voice"
+                        className="w-full"
+                        aria-invalid={fieldState.invalid}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent position="item-aligned">
+                        {VOICE_LIST.map((v) => (
+                          <SelectItem key={v.id} value={v.id}>
+                            {v.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
+
+              <Controller
+                name="voiceConfig.language"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="agent-language">Language</FieldLabel>
+                    <Select
+                      name={field.name}
+                      value={field.value}
+                      onValueChange={field.onChange}
+                    >
+                      <SelectTrigger
+                        id="agent-language"
+                        className="w-full"
+                        aria-invalid={fieldState.invalid}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent position="item-aligned">
+                        {LANGUAGE_LIST.map((l) => (
+                          <SelectItem key={l.code} value={l.code}>
+                            {l.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Controller
+                name="voiceConfig.interruptionSensitivity"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="agent-interruption">
+                      Interruption sensitivity
+                    </FieldLabel>
+                    <Select
+                      name={field.name}
+                      value={field.value}
+                      onValueChange={field.onChange}
+                    >
+                      <SelectTrigger
+                        id="agent-interruption"
+                        className="w-full"
+                        aria-invalid={fieldState.invalid}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent position="item-aligned">
+                        <SelectItem value="low">Low</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="high">High</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
+
+              <Controller
+                name="voiceConfig.endCallKeyword"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="agent-end-call">
+                      End-call keyword
+                    </FieldLabel>
+                    <Input
+                      {...field}
+                      id="agent-end-call"
+                      aria-invalid={fieldState.invalid}
+                    />
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
+            </div>
+          </FieldGroup>
+        ) : null}
+
+        <FieldGroup>
+          <Controller
+            name="kbIds"
+            control={form.control}
+            render={({ field, fieldState }) => {
+              console.log("KB Field Value:", field.value);
+              return (
+                <div className="flex flex-col gap-1">
+                  <FieldLabel htmlFor="agent-kbs">Knowledge</FieldLabel>
+                  {kbs.length === 0 ? (
+                    <p className="rounded-lg border border-dashed border-zinc-300 p-4 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+                      No knowledge bases yet — create one above to attach it
+                    </p>
+                  ) : (
+                    <>
+                      {field.value.length > 0 && (
+                        <div className="mb-1.5 flex flex-wrap gap-1.5">
+                          {field.value.map((id) => {
+                            const kb = kbs.find((k) => k.id === id);
+                            if (!kb) return null;
+                            return (
+                              <span
+                                key={id}
+                                className="flex h-5 items-center gap-1 rounded-sm bg-muted pl-1.5 pr-1 text-xs font-medium text-foreground"
+                              >
+                                {kb.name}
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    // Filter out the ID and notify RHF of the new array of strings
+                                    field.onChange(
+                                      field.value.filter((x) => x !== id),
+                                    )
+                                  }
+                                  className="-ml-1 flex size-4 items-center justify-center rounded-sm text-muted-foreground hover:bg-zinc-200 hover:text-foreground dark:hover:bg-zinc-700"
+                                  aria-label={`Remove ${kb.name}`}
+                                >
+                                  <XIcon className="size-3" />
+                                </button>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      <Combobox
+                        items={kbs}
+                        multiple
+                        value={kbs.filter((kb) => field.value.includes(kb.id))}
+                        onValueChange={(values: KnowledgeBaseRow[]) => {
+                          field.onChange(values.map((v) => v.id));
+                        }}
+                        isItemEqualToValue={(item, value) =>
+                          item.id === value.id
+                        }
+                      >
+                        <ComboboxInput placeholder="Select knowledge bases..." />
+                        <ComboboxContent>
+                          <ComboboxEmpty>No items found.</ComboboxEmpty>
+                          <ComboboxList>
+                            {(item) => (
+                              <ComboboxItem key={item.id} value={item}>
+                                {item.name}
+                              </ComboboxItem>
+                            )}
+                          </ComboboxList>
+                        </ComboboxContent>
+                      </Combobox>
+                    </>
+                  )}
+                  {fieldState.invalid && (
+                    <FieldError errors={[fieldState.error]} />
+                  )}
+                </div>
+              );
+            }}
+          />
+
           <div className="grid grid-cols-2 gap-3">
             <Controller
-              name="voiceConfig.voiceId"
+              name="topK"
               control={form.control}
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="agent-voice">Voice</FieldLabel>
-                  <Select
-                    name={field.name}
-                    value={field.value}
-                    onValueChange={field.onChange}
-                  >
-                    <SelectTrigger
-                      id="agent-voice"
-                      className="w-full"
-                      aria-invalid={fieldState.invalid}
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent position="item-aligned">
-                      {VOICE_LIST.map((v) => (
-                        <SelectItem key={v.id} value={v.id}>
-                          {v.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {fieldState.invalid && (
-                    <FieldError errors={[fieldState.error]} />
-                  )}
-                </Field>
-              )}
-            />
-
-            <Controller
-              name="voiceConfig.language"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="agent-language">Language</FieldLabel>
-                  <Select
-                    name={field.name}
-                    value={field.value}
-                    onValueChange={field.onChange}
-                  >
-                    <SelectTrigger
-                      id="agent-language"
-                      className="w-full"
-                      aria-invalid={fieldState.invalid}
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent position="item-aligned">
-                      {LANGUAGE_LIST.map((l) => (
-                        <SelectItem key={l.code} value={l.code}>
-                          {l.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {fieldState.invalid && (
-                    <FieldError errors={[fieldState.error]} />
-                  )}
-                </Field>
-              )}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Controller
-              name="voiceConfig.interruptionSensitivity"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="agent-interruption">
-                    Interruption sensitivity
-                  </FieldLabel>
-                  <Select
-                    name={field.name}
-                    value={field.value}
-                    onValueChange={field.onChange}
-                  >
-                    <SelectTrigger
-                      id="agent-interruption"
-                      className="w-full"
-                      aria-invalid={fieldState.invalid}
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent position="item-aligned">
-                      <SelectItem value="low">Low</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {fieldState.invalid && (
-                    <FieldError errors={[fieldState.error]} />
-                  )}
-                </Field>
-              )}
-            />
-
-            <Controller
-              name="voiceConfig.endCallKeyword"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="agent-end-call">
-                    End-call keyword
+                  <FieldLabel htmlFor="agent-topk">
+                    Chunks to retrieve (topK)
                   </FieldLabel>
                   <Input
                     {...field}
-                    id="agent-end-call"
+                    id="agent-topk"
+                    type="number"
+                    min={1}
+                    max={10}
+                    aria-invalid={fieldState.invalid}
+                  />
+                  {fieldState.invalid && (
+                    <FieldError errors={[fieldState.error]} />
+                  )}
+                </Field>
+              )}
+            />
+
+            <Controller
+              name="similarityThreshold"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="agent-similarity">
+                    Similarity threshold
+                  </FieldLabel>
+                  <Input
+                    {...field}
+                    id="agent-similarity"
+                    type="number"
+                    min={0}
+                    max={1}
+                    step={0.05}
                     aria-invalid={fieldState.invalid}
                   />
                   {fieldState.invalid && (
@@ -493,95 +635,21 @@ export function AgentEditor({
             />
           </div>
         </FieldGroup>
-      ) : null}
 
-      <FieldGroup>
-        {/* BUG: Here the kb is not getting selected even after clicking on it  */}
-
-        <Controller
-          name="kbIds"
-          control={form.control}
-          render={({ field }) => {
-            const selected = field.value
-              .map((id) => kbs.find((kb) => kb.id === id))
-              .filter((kb): kb is KnowledgeBaseRow => Boolean(kb));
-            return (
-              <Field>
-                <FieldLabel htmlFor="agent-kbs">Knowledge</FieldLabel>
-                {kbs.length === 0 ? (
-                  <p className="rounded-lg border border-dashed border-zinc-300 p-4 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
-                    No knowledge bases yet — create one above to attach it
-                  </p>
-                ) : (
-                  <>
-                    {selected.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5">
-                        {selected.map((kb) => (
-                          <span
-                            key={kb.id}
-                            className="flex h-5 items-center gap-1 rounded-sm bg-muted pl-1.5 pr-1 text-xs font-medium text-foreground"
-                          >
-                            {kb.name}
-                            <button
-                              type="button"
-                              onClick={() =>
-                                field.onChange(
-                                  field.value.filter((id) => id !== kb.id),
-                                )
-                              }
-                              className="-ml-1 flex size-4 items-center justify-center rounded-sm text-muted-foreground hover:bg-zinc-200 hover:text-foreground dark:hover:bg-zinc-700"
-                              aria-label={`Remove ${kb.name}`}
-                            >
-                              <XIcon className="size-3" />
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    <Combobox
-                      items={kbs}
-                      multiple
-                      itemToStringValue={(kb) => kb.name}
-                      value={kbs.filter((kb) => field.value?.includes(kb.id))}
-                      onValueChange={(items: KnowledgeBaseRow[]) =>
-                        field.onChange(items.map((kb) => kb.id))
-                      }
-                    >
-                      <ComboboxInput placeholder="Select knowledge bases..." />
-                      <ComboboxContent>
-                        <ComboboxEmpty>No items found.</ComboboxEmpty>
-                        <ComboboxList>
-                          {(kb: KnowledgeBaseRow) => (
-                            <ComboboxItem key={kb.id} value={kb}>
-                              {kb.name}
-                            </ComboboxItem>
-                          )}
-                        </ComboboxList>
-                      </ComboboxContent>
-                    </Combobox>
-                  </>
-                )}
-              </Field>
-            );
-          }}
-        />
-
-        <div className="grid grid-cols-2 gap-3">
+        <FieldGroup>
           <Controller
-            name="topK"
+            name="config.greeting"
             control={form.control}
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="agent-topk">
-                  Chunks to retrieve (topK)
+                <FieldLabel htmlFor="agent-greeting">
+                  Greeting message
                 </FieldLabel>
                 <Input
                   {...field}
-                  id="agent-topk"
-                  type="number"
-                  min={1}
-                  max={10}
+                  id="agent-greeting"
                   aria-invalid={fieldState.invalid}
+                  placeholder="Hi! How can I help you today?"
                 />
                 {fieldState.invalid && (
                   <FieldError errors={[fieldState.error]} />
@@ -590,62 +658,60 @@ export function AgentEditor({
             )}
           />
 
+          <div className="grid grid-cols-2 gap-3">
+            <Controller
+              name="config.tone"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="agent-tone">Tone</FieldLabel>
+                  <Input
+                    {...field}
+                    id="agent-tone"
+                    aria-invalid={fieldState.invalid}
+                    placeholder="friendly, professional, sales"
+                  />
+                  {fieldState.invalid && (
+                    <FieldError errors={[fieldState.error]} />
+                  )}
+                </Field>
+              )}
+            />
+
+            <Controller
+              name="config.maxTurns"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="agent-max-turns">Max turns</FieldLabel>
+                  <Input
+                    {...field}
+                    id="agent-max-turns"
+                    type="number"
+                    min={1}
+                    aria-invalid={fieldState.invalid}
+                  />
+                  {fieldState.invalid && (
+                    <FieldError errors={[fieldState.error]} />
+                  )}
+                </Field>
+              )}
+            />
+          </div>
+
           <Controller
-            name="similarityThreshold"
+            name="config.suggestedPrompts"
             control={form.control}
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="agent-similarity">
-                  Similarity threshold
+                <FieldLabel htmlFor="agent-suggested-prompts">
+                  Suggested prompts (comma separated)
                 </FieldLabel>
                 <Input
                   {...field}
-                  id="agent-similarity"
-                  type="number"
-                  min={0}
-                  max={1}
-                  step={0.05}
+                  id="agent-suggested-prompts"
                   aria-invalid={fieldState.invalid}
-                />
-                {fieldState.invalid && (
-                  <FieldError errors={[fieldState.error]} />
-                )}
-              </Field>
-            )}
-          />
-        </div>
-      </FieldGroup>
-
-      <FieldGroup>
-        <Controller
-          name="config.greeting"
-          control={form.control}
-          render={({ field, fieldState }) => (
-            <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor="agent-greeting">Greeting message</FieldLabel>
-              <Input
-                {...field}
-                id="agent-greeting"
-                aria-invalid={fieldState.invalid}
-                placeholder="Hi! How can I help you today?"
-              />
-              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-            </Field>
-          )}
-        />
-
-        <div className="grid grid-cols-2 gap-3">
-          <Controller
-            name="config.tone"
-            control={form.control}
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="agent-tone">Tone</FieldLabel>
-                <Input
-                  {...field}
-                  id="agent-tone"
-                  aria-invalid={fieldState.invalid}
-                  placeholder="friendly, professional, sales"
+                  placeholder="What are your pricing plans?, Do you offer refunds?"
                 />
                 {fieldState.invalid && (
                   <FieldError errors={[fieldState.error]} />
@@ -655,17 +721,19 @@ export function AgentEditor({
           />
 
           <Controller
-            name="config.maxTurns"
+            name="escalationMessage"
             control={form.control}
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="agent-max-turns">Max turns</FieldLabel>
-                <Input
+                <FieldLabel htmlFor="agent-escalation">
+                  Escalation fallback message
+                </FieldLabel>
+                <Textarea
                   {...field}
-                  id="agent-max-turns"
-                  type="number"
-                  min={1}
+                  id="agent-escalation"
                   aria-invalid={fieldState.invalid}
+                  rows={3}
+                  placeholder="I couldn't answer that — let me connect you with a human agent."
                 />
                 {fieldState.invalid && (
                   <FieldError errors={[fieldState.error]} />
@@ -673,69 +741,30 @@ export function AgentEditor({
               </Field>
             )}
           />
+        </FieldGroup>
+
+        <div className="flex items-center gap-3">
+          <Button type="submit" disabled={saving || publishing}>
+            {saving ? "Saving..." : "Save"}
+          </Button>
+          <Button
+            type="button"
+            onClick={handlePublish}
+            disabled={publishDisabled || saving}
+            className="bg-emerald-600 text-white hover:bg-emerald-500"
+          >
+            {publishing ? "Publishing..." : "Publish"}
+          </Button>
+          {publishDisabled && !publishing && !saving ? (
+            <span className="text-sm text-zinc-500 dark:text-zinc-400">
+              {!systemPrompt.trim()
+                ? "Needs a system prompt"
+                : selectedKbIds.length === 0
+                  ? "Needs at least one attached knowledge base"
+                  : ""}
+            </span>
+          ) : null}
         </div>
-
-        <Controller
-          name="config.suggestedPrompts"
-          control={form.control}
-          render={({ field, fieldState }) => (
-            <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor="agent-suggested-prompts">
-                Suggested prompts (comma separated)
-              </FieldLabel>
-              <Input
-                {...field}
-                id="agent-suggested-prompts"
-                aria-invalid={fieldState.invalid}
-                placeholder="What are your pricing plans?, Do you offer refunds?"
-              />
-              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-            </Field>
-          )}
-        />
-
-        <Controller
-          name="escalationMessage"
-          control={form.control}
-          render={({ field, fieldState }) => (
-            <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor="agent-escalation">
-                Escalation fallback message
-              </FieldLabel>
-              <Textarea
-                {...field}
-                id="agent-escalation"
-                aria-invalid={fieldState.invalid}
-                rows={3}
-                placeholder="I couldn't answer that — let me connect you with a human agent."
-              />
-              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-            </Field>
-          )}
-        />
-      </FieldGroup>
-
-      <div className="flex items-center gap-3">
-        <Button type="submit" disabled={saving || publishing}>
-          {saving ? "Saving..." : "Save"}
-        </Button>
-        <Button
-          type="button"
-          onClick={handlePublish}
-          disabled={publishDisabled || saving}
-          className="bg-emerald-600 text-white hover:bg-emerald-500"
-        >
-          {publishing ? "Publishing..." : "Publish"}
-        </Button>
-        {publishDisabled && !publishing && !saving ? (
-          <span className="text-sm text-zinc-500 dark:text-zinc-400">
-            {!systemPrompt.trim()
-              ? "Needs a system prompt"
-              : kbIds.length === 0
-                ? "Needs at least one attached knowledge base"
-                : ""}
-          </span>
-        ) : null}
       </div>
     </form>
   );

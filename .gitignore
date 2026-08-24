@@ -44,6 +44,10 @@ next-env.d.ts
 # private brainstorming notes
 docs/notes/whiteboard.md
 
+# local-only bug tracker & testing notes (used to draft issues addressed later)
+docs/notes/bugs.md
+docs/notes/testing.md
+
 # local-only sample sources (ingestion/retrieval testing)
 /test/
 
