@@ -42,7 +42,8 @@ const AGENT_JOIN_TIMEOUT_MS = 10_000;
  *
  * Places a real call: fetches a short-lived LiveKit session from
  * `/api/agents/[id]/test-token`, connects the room with `livekit-client`,
- * publishes the mic, plays the agent's audio through an `AudioContext`, and
+ * publishes the mic, plays the agent's audio through LiveKit-attached
+ * `<audio>` elements, and
  * renders a live transcript fed by the framework's `lk.transcription` data
  * streams (agent TTS + user STT both arrive as transcription segments).
  */
@@ -66,8 +67,7 @@ export function TestCallDialog({
 
   const roomRef = useRef<Room | null>(null);
   const micRef = useRef<LocalAudioTrack | null>(null);
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const audioSourcesRef = useRef<MediaStreamAudioSourceNode[]>([]);
+  const audioElsRef = useRef<HTMLAudioElement[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Live transcript state, kept in refs so the room event handlers can mutate
@@ -93,15 +93,10 @@ export function TestCallDialog({
       mic.stop();
       micRef.current = null;
     }
-    for (const source of audioSourcesRef.current) {
-      source.disconnect();
+    for (const el of audioElsRef.current) {
+      el.remove();
     }
-    audioSourcesRef.current = [];
-    const ctx = audioCtxRef.current;
-    if (ctx) {
-      ctx.close().catch(() => {});
-      audioCtxRef.current = null;
-    }
+    audioElsRef.current = [];
     setMuted(false);
     setAgentJoined(false);
     setAgentMissing(false);
@@ -173,12 +168,6 @@ export function TestCallDialog({
       const session: { url: string; room: string; token: string } =
         await res.json();
 
-      // Create the AudioContext from the user gesture so agent audio is not
-      // blocked by autoplay policies.
-      const ctx = new AudioContext();
-      audioCtxRef.current = ctx;
-      await ctx.resume();
-
       // Request the mic now (user gesture) so permission failures surface as
       // a clear, actionable error instead of a silent dead call.
       let mic: LocalAudioTrack;
@@ -199,13 +188,14 @@ export function TestCallDialog({
       roomRef.current = room;
 
       room.on(RoomEvent.TrackSubscribed, (track) => {
+        console.log("[TestCall] TrackSubscribed:", track.kind, track.sid, track.source);
         if (track.kind !== "audio") return;
-        const audioCtx = audioCtxRef.current;
-        if (!audioCtx) return;
-        const stream = new MediaStream([track.mediaStreamTrack]);
-        const source = audioCtx.createMediaStreamSource(stream);
-        source.connect(audioCtx.destination);
-        audioSourcesRef.current.push(source);
+        // LiveKit-native playback (Brave-safe): let the SDK attach a real
+        // <audio> element; room.startAudio() already unlocked autoplay.
+        const el = track.attach();
+        el.autoplay = true;
+        document.body.appendChild(el);
+        audioElsRef.current.push(el);
       });
 
       room.on(RoomEvent.TranscriptionReceived, (segments, participant) => {
