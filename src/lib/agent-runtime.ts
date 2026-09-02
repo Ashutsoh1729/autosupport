@@ -4,6 +4,7 @@ import { agents, type Agent } from "@/lib/db/schema";
 import { isValidUuid } from "@/lib/retrieval";
 
 const TEXT_CHANNEL = "text" as const;
+const VOICE_CHANNEL = "voice" as const;
 const PUBLISHED = "published" as const;
 
 /**
@@ -23,6 +24,28 @@ export async function loadPublishedTextAgent(
 
   if (!agent) return null;
   if (agent.channel !== TEXT_CHANNEL) return null;
+  if (agent.status !== PUBLISHED) return null;
+  return agent;
+}
+
+/**
+ * Loads an agent only if it is a UUID, exists, is a voice-channel agent, and is
+ * published. Returns null otherwise. Used by the voice agent worker when a call
+ * is dispatched to the room.
+ */
+export async function loadPublishedVoiceAgent(
+  agentId: string,
+): Promise<Agent | null> {
+  if (!isValidUuid(agentId)) return null;
+
+  const [agent] = await db
+    .select()
+    .from(agents)
+    .where(eq(agents.id, agentId))
+    .limit(1);
+
+  if (!agent) return null;
+  if (agent.channel !== VOICE_CHANNEL) return null;
   if (agent.status !== PUBLISHED) return null;
   return agent;
 }

@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Local agent-orchestrator tooling (gitignored), not app code.
+    ".opencode/**",
   ]),
 ]);
 

@@ -3,3 +3,5 @@ procs:
     shell: "npm run dev"
   inngest:
     shell: "npx inngest-cli dev"
+  voice-agent:
+    shell: "npx tsx src/voice-agent/worker.ts start"
