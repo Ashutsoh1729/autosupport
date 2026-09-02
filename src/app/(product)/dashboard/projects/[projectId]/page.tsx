@@ -5,8 +5,8 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { projects, knowledgeBases, agents } from "@/lib/db/schema";
 import { eq, asc } from "drizzle-orm";
-import { SignOutButton } from "@/components/sign-out-button";
 import { AgentManager } from "@/components/agent-manager";
+import { PageBack } from "@/components/page-back";
 import {
   NewKnowledgeBaseDialog,
   KnowledgeBaseRowActions,
@@ -47,75 +47,55 @@ export default async function ProjectDetailPage({
     .orderBy(asc(agents.createdAt));
 
   return (
-    <div className="flex flex-1 flex-col bg-zinc-50 dark:bg-black">
-      <header className="flex items-center justify-between border-b border-zinc-200 px-6 py-4 dark:border-zinc-800">
-        <div className="flex items-center gap-3">
-          <Link
-            href="/dashboard"
-            className="text-sm text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
-          >
-            ← Projects
-          </Link>
-          <Link
-            href="/"
-            className="text-lg font-semibold text-zinc-900 dark:text-zinc-50"
-          >
-            AutoSupport
-          </Link>
+    <div className="flex flex-1 flex-col items-center px-6 py-8 bg-zinc-50 dark:bg-black">
+      <div className="flex w-full max-w-2xl flex-col gap-6">
+        <div className="flex items-start justify-between gap-4">
+          <PageBack href="/dashboard" />
         </div>
-        <SignOutButton />
-      </header>
 
-      <main className="flex flex-1 flex-col items-center px-6 py-8">
-        <div className="flex w-full max-w-2xl flex-col gap-6">
-          <div>
-            <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-              {project.name}
-            </h1>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-              Agents and knowledge bases for this project
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+            {project.name}
+          </h1>
+          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+            Agents and knowledge bases for this project
+          </p>
+        </div>
+
+        <AgentManager projectId={project.id} agents={agentRows} kbs={kbRows} />
+
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">
+              Knowledge Bases
+            </h2>
+            <NewKnowledgeBaseDialog projectId={project.id} />
+          </div>
+
+          {kbRows.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-zinc-300 p-6 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+              No knowledge bases yet — create one
             </p>
-          </div>
-
-          <AgentManager
-            projectId={project.id}
-            agents={agentRows}
-            kbs={kbRows}
-          />
-
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">
-                Knowledge Bases
-              </h2>
-              <NewKnowledgeBaseDialog projectId={project.id} />
-            </div>
-
-            {kbRows.length === 0 ? (
-              <p className="rounded-lg border border-dashed border-zinc-300 p-6 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
-                No knowledge bases yet — create one
-              </p>
-            ) : (
-              <ul className="flex flex-col gap-2">
-                {kbRows.map((kb) => (
-                  <li
-                    key={kb.id}
-                    className="flex items-center justify-between gap-3 rounded-lg border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900"
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {kbRows.map((kb) => (
+                <li
+                  key={kb.id}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900"
+                >
+                  <Link
+                    href={`/dashboard/projects/${project.id}/knowledge-bases/${kb.id}`}
+                    className="min-w-0 flex-1 truncate font-medium text-zinc-900 hover:underline dark:text-zinc-50"
                   >
-                    <Link
-                      href={`/dashboard/projects/${project.id}/knowledge-bases/${kb.id}`}
-                      className="min-w-0 flex-1 truncate font-medium text-zinc-900 hover:underline dark:text-zinc-50"
-                    >
-                      {kb.name}
-                    </Link>
-                    <KnowledgeBaseRowActions kb={kb} />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+                    {kb.name}
+                  </Link>
+                  <KnowledgeBaseRowActions kb={kb} />
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-      </main>
+      </div>
     </div>
   );
 }

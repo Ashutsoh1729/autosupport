@@ -1,3 +1,6 @@
+// LiveKit agent framework: AgentSession drives the realtime voice pipeline,
+// defineAgent registers this worker's entry, and cli/ServerOptions let this
+// script run as a standalone worker process that LiveKit dispatches jobs to.
 import {
   Agent,
   AgentSession,
@@ -19,6 +22,7 @@ import type { Agent as AgentRow } from "@/lib/db/schema";
 import { isValidUuid } from "@/lib/retrieval";
 import { answerTurn } from "@/lib/voice-answer";
 
+// Fallbacks used when an agent row omits voice config.
 const DEFAULT_STT_MODEL = "nova-3";
 const DEFAULT_TTS_MODEL = "aura-2-andromeda-en";
 const DEFAULT_LANGUAGE = "en";
@@ -149,12 +153,18 @@ export default defineAgent({
     }
 
     const settings = resolveVoiceSettings(agentRow);
+    // STT transcribes the caller in the resolved language; TTS speaks replies.
+    // Note: the TTS voice (ttsModel) selects the output language via the
+    // configured voiceId, not directly from `settings.language`.
     const stt = new DeepgramSTT({
       model: settings.sttModel,
       language: settings.language,
     });
     const tts = new DeepgramTTS({ model: settings.ttsModel });
 
+    // Build the agent: it holds the system prompt and, on each completed user
+    // turn, commits history, checks for the end-call keyword, gets a reply via
+    // answerTurn(), and speaks it back.
     const agent = Agent.create({
       id: agentRow.id,
       instructions: buildAgentSystemPrompt(agentRow),
@@ -182,6 +192,7 @@ export default defineAgent({
       },
     });
 
+    // The session wires STT + TTS together and drives the realtime call loop.
     const session = new AgentSession({
       stt,
       tts,
@@ -192,10 +203,14 @@ export default defineAgent({
       },
     });
 
+    // Signal that lets entry() await the session's lifetime without blocking the
+    // rest of the job's cleanup wiring.
     const closed = new Promise<void>((resolve) => {
       session.on(AgentSessionEventTypes.Close, () => resolve());
     });
 
+    // Join the room and start the realtime turn loop; the room is deleted from
+    // LiveKit once the session closes.
     try {
       await session.start({
         agent,
@@ -208,6 +223,8 @@ export default defineAgent({
       return;
     }
 
+    // When this job shuts down, tear the session down gracefully rather than
+    // letting the process die with it still open.
     ctx.addShutdownCallback(async () => {
       await session.close();
     });

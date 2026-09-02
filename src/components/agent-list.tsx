@@ -3,7 +3,12 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Code2Icon, MessageSquareTextIcon, Trash2Icon } from "lucide-react";
+import {
+  Code2Icon,
+  MessageSquareTextIcon,
+  PhoneCallIcon,
+  Trash2Icon,
+} from "lucide-react";
 import type { Agent } from "@/lib/db/schema";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { EmbedAgentDialog } from "@/components/embed-agent-dialog";
+import { TestCallDialog } from "@/components/test-call-dialog";
 import { TestChatDialog } from "@/components/test-chat-dialog";
 
 export function AgentList({
@@ -31,6 +37,7 @@ export function AgentList({
   const router = useRouter();
   const [embedAgent, setEmbedAgent] = useState<Agent | null>(null);
   const [testAgent, setTestAgent] = useState<Agent | null>(null);
+  const [callAgent, setCallAgent] = useState<Agent | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Agent | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -70,6 +77,8 @@ export function AgentList({
         {agents.map((agent) => {
           const isPublishedText =
             agent.status === "published" && agent.channel === "text";
+          const isPublishedVoice =
+            agent.status === "published" && agent.channel === "voice";
           return (
             <li key={agent.id}>
               <div
@@ -119,6 +128,19 @@ export function AgentList({
                     </Button>
                   </div>
                 )}
+                {isPublishedVoice && (
+                  <div className="ml-3 flex shrink-0 items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCallAgent(agent)}
+                    >
+                      <PhoneCallIcon />
+                      Test call
+                    </Button>
+                  </div>
+                )}
                 <Button
                   type="button"
                   variant="ghost"
@@ -153,6 +175,17 @@ export function AgentList({
           open={true}
           onOpenChange={(o) => {
             if (!o) setEmbedAgent(null);
+          }}
+        />
+      )}
+
+      {callAgent && (
+        <TestCallDialog
+          agentId={callAgent.id}
+          agentName={callAgent.name}
+          open={true}
+          onOpenChange={(o) => {
+            if (!o) setCallAgent(null);
           }}
         />
       )}
