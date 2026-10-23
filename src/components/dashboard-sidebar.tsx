@@ -5,7 +5,6 @@ import { FolderIcon } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -13,9 +12,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarSeparator,
 } from "@/components/ui/sidebar";
-import { SignOutButton } from "@/components/sign-out-button";
 
 export type SidebarProject = {
   id: string;
@@ -66,10 +63,6 @@ export function DashboardSidebar({
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarSeparator />
-      <SidebarFooter>
-        <SignOutButton />
-      </SidebarFooter>
     </Sidebar>
   );
 }

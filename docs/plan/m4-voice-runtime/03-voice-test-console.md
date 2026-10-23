@@ -1,6 +1,6 @@
 # Voice Test Console (Browser)
 
-Status: Pending
+Status: Done
 Branch: plan/m4-voice-runtime
 
 ## Description
@@ -27,24 +27,28 @@ browser half of the M4 end-to-end voice runtime, and the human side of plan 02's
 ## Implementation Steps
 
 ### Step 1: Dependency
-- [ ] `npm install livekit-client`
+- [x] `npm install livekit-client`
 
 ### Step 2: TestCallDialog component
-- [ ] Create `src/components/test-call-dialog.tsx` (client) with connect/end/mute controls and status text.
-- [ ] On connect: fetch `POST /api/agents/[id]/test-token`; `Room.connect(url, token)`; publish mic;
+- [x] Create `src/components/test-call-dialog.tsx` (client) with connect/end/mute controls and status text.
+- [x] On connect: fetch `POST /api/agents/[id]/test-token`; `Room.connect(url, token)`; publish mic;
       subscribe to `remoteAudioTrack`; play via `AudioContext`.
-- [ ] Render a live transcript list (user + agent turns); handle mic permission denied and connect errors.
-- [ ] On end: disconnect room, clean up tracks and audio context.
+- [x] Render a live transcript list (user + agent turns); handle mic permission denied and connect errors.
+- [x] On end: disconnect room, clean up tracks and audio context.
 
 ### Step 3: Wire into agent list
-- [ ] In `src/components/agent-list.tsx`, add a "Test call" button for published **voice** agents
+- [x] In `src/components/agent-list.tsx`, add a "Test call" button for published **voice** agents
       (alongside the existing Test chat / Embed actions for text agents).
-- [ ] Hold open dialog state per row (mirror the existing `setTestAgent` / `setEmbedAgent` pattern).
+- [x] Hold open dialog state per row (mirror the existing `setTestAgent` / `setEmbedAgent` pattern).
 
 ### Step 4: Verify
-- [ ] `npm run build` and `npm run lint` pass.
-- [ ] With `mprocs` running (worker from plan 02 up), start a call on a published voice agent:
+- [x] `npm run build` and `npm run lint` pass.
+- [x] With `mprocs` running (worker from plan 02 up), start a call on a published voice agent:
       agent greets, answers a question, ends on disconnect. Confirm transcript updates live.
+      (Headless Chrome: fake-mic WAV via `--use-file-for-fake-audio-capture`; logged in as
+      `plan03-console@test.dev`; Voice Demo Agent greeted, STT heard both "What is your refund
+      policy?" and "Can you tell me about the shipping policy?", the agent answered from the KB,
+      and "End call." triggered `end_call_keyword` → room deleted → dialog shows "Call ended".)
 
 ---
 

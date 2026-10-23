@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth/server";
 import { db } from "@/lib/db";
 import { knowledgeBases, knowledgeSources } from "@/lib/db/schema";
 import { eq, asc } from "drizzle-orm";
-import { SourceForms, SourceRowActions } from "@/components/source-forms";
+import { SourceSheet, SourceRowActions } from "@/components/source-forms";
 
 export default async function KnowledgeBaseDetailPage({
   params,
@@ -54,7 +54,7 @@ export default async function KnowledgeBaseDetailPage({
           </p>
         </div>
 
-        <SourceForms kbId={kb.id} />
+        <SourceSheet kbId={kb.id} />
 
         <div className="flex flex-col gap-4">
           <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">
