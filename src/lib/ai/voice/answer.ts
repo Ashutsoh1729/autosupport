@@ -1,11 +1,11 @@
 import { streamText } from "ai";
 import { ReadableStream } from "node:stream/web";
-import { chatModel } from "@/lib/ai";
-import { retrieveChunks } from "@/lib/retrieval";
+import { chatModel } from "@/lib/ai/models";
+import { retrieveChunks } from "@/lib/ai/retrieval";
 import {
   buildAgentSystemPrompt,
   type ChatMessage,
-} from "@/lib/agent-runtime";
+} from "@/lib/ai/agents/runtime";
 import type { Agent } from "@/lib/db/schema";
 
 const DEFAULT_ESCALATION =

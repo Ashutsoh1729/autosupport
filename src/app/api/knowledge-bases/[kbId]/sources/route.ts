@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { knowledgeSources } from "@/lib/db/schema";
 import { eq, asc } from "drizzle-orm";
-import { requireKnowledgeBaseAccess } from "@/lib/tenancy";
-import { sendKnowledgeSourceCreated } from "@/lib/inngest";
+import { requireKnowledgeBaseAccess } from "@/lib/auth/tenancy";
+import { sendKnowledgeSourceCreated } from "@/lib/infra/inngest";
 
 export async function GET(
   request: Request,

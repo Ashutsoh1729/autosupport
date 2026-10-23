@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { generateText } from "ai";
-import { requireKnowledgeBaseAccess } from "@/lib/tenancy";
-import { clampTopK, isValidUuid, retrieveChunks } from "@/lib/retrieval";
-import { chatModel } from "@/lib/ai";
+import { requireKnowledgeBaseAccess } from "@/lib/auth/tenancy";
+import { clampTopK, isValidUuid, retrieveChunks } from "@/lib/ai/retrieval";
+import { chatModel } from "@/lib/ai/models";
 
 const NO_CONTEXT_ANSWER = "No relevant information found in the knowledge base.";
 

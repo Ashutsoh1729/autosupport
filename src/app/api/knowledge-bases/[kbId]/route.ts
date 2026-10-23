@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { knowledgeBases } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { requireKnowledgeBaseAccess } from "@/lib/tenancy";
+import { requireKnowledgeBaseAccess } from "@/lib/auth/tenancy";
 
 export async function PUT(
   request: Request,

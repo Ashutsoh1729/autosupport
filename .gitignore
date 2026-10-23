@@ -41,8 +41,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# private brainstorming notes
-docs/notes/whiteboard.md
+# private brainstorming & local notes (entire dir is local-only)
+docs/notes/
 
 # local-only sample sources (ingestion/retrieval testing)
 /test/

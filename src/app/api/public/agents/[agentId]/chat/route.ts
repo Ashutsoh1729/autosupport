@@ -1,18 +1,18 @@
 import { NextResponse } from "next/server";
 import { streamText } from "ai";
-import { chatModel } from "@/lib/ai";
-import { retrieveChunks } from "@/lib/retrieval";
+import { chatModel } from "@/lib/ai/models";
+import { retrieveChunks } from "@/lib/ai/retrieval";
 import {
   buildAgentSystemPrompt,
   lastUserMessage,
   loadPublishedTextAgent,
   parseChatMessages,
-} from "@/lib/agent-runtime";
+} from "@/lib/ai/agents/runtime";
 import {
   optionsResponse,
   withCors,
   corsHeaders,
-} from "@/lib/public-cors";
+} from "@/lib/http/public-cors";
 
 export const runtime = "nodejs";
 

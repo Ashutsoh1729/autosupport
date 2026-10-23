@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { knowledgeSources } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { removeFromR2 } from "@/lib/r2";
-import { requireKnowledgeBaseAccess } from "@/lib/tenancy";
+import { removeFromR2 } from "@/lib/infra/r2";
+import { requireKnowledgeBaseAccess } from "@/lib/auth/tenancy";
 
 export async function DELETE(
   request: Request,

@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { auth } from "@/lib/auth";
+import { auth } from "@/lib/auth/server";
 import { db } from "@/lib/db";
 import { knowledgeBases, knowledgeSources } from "@/lib/db/schema";
 import { eq, asc } from "drizzle-orm";

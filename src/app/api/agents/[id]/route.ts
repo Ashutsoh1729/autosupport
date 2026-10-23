@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { agents } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { requireAgentAccess, filterProjectKbIds } from "@/lib/tenancy";
-import { parseAgentBody } from "@/lib/agent-validation";
+import { requireAgentAccess, filterProjectKbIds } from "@/lib/auth/tenancy";
+import { parseAgentBody } from "@/lib/ai/agents/validation";
 
 export async function PUT(
   request: Request,

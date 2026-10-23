@@ -14,10 +14,10 @@ import {
   buildAgentSystemPrompt,
   loadPublishedVoiceAgent,
   type ChatMessage,
-} from "@/lib/agent-runtime";
+} from "@/lib/ai/agents/runtime";
 import type { Agent as AgentRow } from "@/lib/db/schema";
-import { isValidUuid } from "@/lib/retrieval";
-import { answerTurn } from "@/lib/voice-answer";
+import { isValidUuid } from "@/lib/ai/retrieval";
+import { answerTurn } from "@/lib/ai/voice/answer";
 
 const DEFAULT_STT_MODEL = "nova-3";
 const DEFAULT_TTS_MODEL = "aura-2-andromeda-en";

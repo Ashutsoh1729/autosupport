@@ -2,8 +2,8 @@ import { Inngest, eventType, staticSchema } from "inngest";
 import { db } from "@/lib/db";
 import { knowledgeSources, chunks } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { embedTexts } from "@/lib/ai";
-import { getFromR2 } from "@/lib/r2";
+import { embedTexts } from "@/lib/ai/models";
+import { getFromR2 } from "@/lib/infra/r2";
 import { PDFParse } from "pdf-parse";
 
 export const knowledgeSourceCreated = eventType(

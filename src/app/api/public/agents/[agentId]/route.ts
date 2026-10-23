@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { loadPublishedTextAgent } from "@/lib/agent-runtime";
-import { optionsResponse, withCors } from "@/lib/public-cors";
+import { loadPublishedTextAgent } from "@/lib/ai/agents/runtime";
+import { optionsResponse, withCors } from "@/lib/http/public-cors";
 
 export function OPTIONS() {
   return optionsResponse();
