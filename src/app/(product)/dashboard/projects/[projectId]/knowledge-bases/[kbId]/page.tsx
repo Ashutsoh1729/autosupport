@@ -1,6 +1,5 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { auth } from "@/lib/auth/server";
 import { db } from "@/lib/db";
 import { knowledgeBases, knowledgeSources } from "@/lib/db/schema";
@@ -47,13 +46,7 @@ export default async function KnowledgeBaseDetailPage({
     <main className="flex flex-1 flex-col items-center px-6 py-8">
       <div className="flex w-full max-w-2xl flex-col gap-6">
         <div>
-          <Link
-            href={`/dashboard/projects/${projectId}`}
-            className="text-sm text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
-          >
-            ← Project
-          </Link>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+          <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
             {kb.name}
           </h1>
           <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
