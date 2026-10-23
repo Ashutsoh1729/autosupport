@@ -20,6 +20,7 @@ type Crumb = {
 function buildCrumbs(
   pathname: string,
   projectNames: Record<string, string>,
+  kbNames: Record<string, string>,
 ): Crumb[] {
   const parts = pathname.split("/").filter(Boolean);
   const crumbs: Crumb[] = [{ label: "Dashboard", href: "/dashboard" }];
@@ -28,17 +29,17 @@ function buildCrumbs(
   if (parts[1] === "projects" && parts[2]) {
     const projectId = parts[2];
     const projectLabel = projectNames[projectId] ?? projectId.slice(0, 8);
-    const isKbPage = parts[3] === "knowledge-bases" && parts[4];
+    const kbId = parts[3] === "knowledge-bases" ? parts[4] : undefined;
 
     crumbs.push({
       label: projectLabel,
-      href: isKbPage ? `/dashboard/projects/${projectId}` : undefined,
+      href: kbId ? `/dashboard/projects/${projectId}` : undefined,
     });
 
     // /dashboard/projects/[projectId]/knowledge-bases/[kbId]
-    if (isKbPage) {
+    if (kbId) {
       crumbs.push({
-        label: parts[4]!.slice(0, 8),
+        label: kbNames[kbId] ?? kbId.slice(0, 8),
       });
     }
   }
@@ -48,13 +49,15 @@ function buildCrumbs(
 
 export function DashboardBreadcrumbs({
   projectNames = {},
+  kbNames = {},
 }: {
   projectNames?: Record<string, string>;
+  kbNames?: Record<string, string>;
 }) {
   const pathname = usePathname();
   const crumbs = useMemo(
-    () => buildCrumbs(pathname ?? "", projectNames),
-    [pathname, projectNames],
+    () => buildCrumbs(pathname ?? "", projectNames, kbNames),
+    [pathname, projectNames, kbNames],
   );
 
   return (

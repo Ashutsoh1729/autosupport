@@ -2,8 +2,8 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth/server";
 import { db } from "@/lib/db";
-import { projects } from "@/lib/db/schema";
-import { eq, asc } from "drizzle-orm";
+import { projects, knowledgeBases } from "@/lib/db/schema";
+import { eq, asc, inArray } from "drizzle-orm";
 import { getOrCreateWorkspace } from "@/lib/auth/workspace";
 import {
   SidebarProvider,
@@ -44,6 +44,15 @@ export default async function DashboardLayout({
     sidebarProjects.map((p) => [p.id, p.name]),
   );
 
+  const projectIds = projectRows.map((p) => p.id);
+  const kbRows = projectIds.length
+    ? await db
+        .select({ id: knowledgeBases.id, name: knowledgeBases.name })
+        .from(knowledgeBases)
+        .where(inArray(knowledgeBases.projectId, projectIds))
+    : [];
+  const kbNames = Object.fromEntries(kbRows.map((kb) => [kb.id, kb.name]));
+
   return (
     <SidebarProvider>
       <DashboardSidebar
@@ -53,7 +62,10 @@ export default async function DashboardLayout({
       <SidebarInset className="bg-zinc-50 dark:bg-black">
         <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
           <SidebarTrigger className="-ml-1" />
-          <DashboardBreadcrumbs projectNames={projectNames} />
+          <DashboardBreadcrumbs
+            projectNames={projectNames}
+            kbNames={kbNames}
+          />
         </header>
         {children}
       </SidebarInset>
