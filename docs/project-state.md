@@ -3,9 +3,9 @@
 > Maintained by the plan-executor skill after each completed plan.
 
 ## Current Status
-- Milestone: M4 Voice Runtime (in progress — plan `01-voice-infra` shipped, plan `02-voice-agent-worker` complete and live-verified end-to-end)
-- Completed plans: M1 all, M2 all, M3 `01-agent-schema`, `02-agent-crud`, `03-agent-editor-ui`, `04-agent-channels`, `05-agent-text-runtime`, `06-agent-chat-widget` (all archived); M4 `01-voice-infra` (in progress), `02-voice-agent-worker` (complete, live-verified)
-- Next plan: M4 `03-voice-test-console` (pending)
+- Milestone: M4 Voice Runtime (complete — all three plans shipped and live-verified end-to-end)
+- Completed plans: M1 all, M2 all, M3 `01-agent-schema`, `02-agent-crud`, `03-agent-editor-ui`, `04-agent-channels`, `05-agent-text-runtime`, `06-agent-chat-widget` (all archived); M4 `01-voice-infra`, `02-voice-agent-worker`, `03-voice-test-console` (all complete, live-verified)
+- Next plan: M5 Analytics (call persistence, transcripts, recordings, dashboard) — pending
 
 ## Key Files
 - `src/app/page.tsx` — landing page (server component)
@@ -13,7 +13,9 @@
 - `src/app/globals.css` — Tailwind v4 entry + theme
 - `src/app/login/page.tsx` + `src/app/login/login-form.tsx` — sign-in page + client form (in `(auth)` route group)
 - `src/app/signup/page.tsx` + `src/app/signup/signup-form.tsx` — sign-up page + client form (in `(auth)` route group)
-- `src/app/(product)/dashboard/page.tsx` — protected dashboard: `SidebarProvider` + `DashboardSidebar` wrapping `SidebarInset` (project list + "New Project" dialog), shows workspace + signed-in email (in `(product)` route group)
+- `src/app/(product)/dashboard/layout.tsx` — shared dashboard shell for all `/dashboard/**` routes: `SidebarProvider` + `DashboardSidebar` + header with `SidebarTrigger` + `DashboardBreadcrumbs` (in `(product)` route group)
+- `src/app/(product)/dashboard/page.tsx` — dashboard home (content only): project list + "New Project" dialog
+- `src/app/(product)/dashboard/test/page.tsx` + `test_comp.tsx` — voice test console page (`/dashboard/test`)
 - `src/app/api/auth/[...all]/route.ts` — Better Auth route handler
 - `src/app/api/workspaces/[workspaceId]/projects/route.ts` — GET/POST projects (membership-guarded)
 - `src/app/api/projects/[projectId]/knowledge-bases/route.ts` — GET/POST knowledge bases (tenancy-guarded)
@@ -26,42 +28,45 @@
 - `src/app/api/knowledge-bases/[kbId]/query/route.ts` — POST query: guarded retrieval + grounded LLM answer (chatbot backend, not gated)
 - `src/app/api/public/agents/[agentId]/route.ts` — GET public metadata for published text agents (widget bootstrap)
 - `src/app/api/public/agents/[agentId]/chat/route.ts` — POST public streaming chat: multi-KB RAG + grounded streamed answer
-- `src/lib/livekit.ts` — LiveKit session helper (`createVoiceSession` → `{ url, room, token }`, `roomUrl`/`livekitApiKey`/`livekitApiSecret` with fail-fast env errors)
+- `src/lib/infra/livekit.ts` — LiveKit session helper (`createVoiceSession` → `{ url, room, token }`, `roomUrl`/`livekitApiKey`/`livekitApiSecret` with fail-fast env errors)
 - `src/app/api/agents/[id]/test-token/route.ts` — POST issue voice session token (tenancy-guarded; 400 unless published voice agent)
 - `src/voice-agent/worker.ts` — LiveKit voice agent worker (`defineAgent` + `cli.runApp(new ServerOptions(...))`); joins `agent-<agentId>-<epoch>` rooms via dispatch, runs `AgentSession` (Deepgram STT `nova-3`/`nova-3-multilingual`, TTS `aura-2`) with an `Agent.create` `onUserTurnCompleted` hook; greeting, end-call keyword, interruption sensitivity, `deleteRoomOnClose`
-- `src/lib/voice-answer.ts` — `answerTurn(query, agent, history)` RAG→LLM streaming answer (reuses `retrieveChunks` + `buildAgentSystemPrompt`); `resolveEscalationMessage` fallback when no chunks
-- `src/lib/agent-runtime.ts` — public text-agent runtime helpers (`loadPublishedTextAgent`, `loadPublishedVoiceAgent`, `buildAgentSystemPrompt`, `lastUserMessage`, `parseChatMessages`)
+- `src/lib/ai/voice/answer.ts` — `answerTurn(query, agent, history)` RAG→LLM streaming answer (reuses `retrieveChunks` + `buildAgentSystemPrompt`); `resolveEscalationMessage` fallback when no chunks
+- `src/lib/ai/agents/runtime.ts` — public text-agent runtime helpers (`loadPublishedTextAgent`, `loadPublishedVoiceAgent`, `buildAgentSystemPrompt`, `lastUserMessage`, `parseChatMessages`)
 - `mprocs.yaml` — dev processes: `next`, `inngest`, `voice-agent` (`npx tsx src/voice-agent/worker.ts start`)
-- `src/lib/public-cors.ts` — CORS headers + `withCors`/`optionsResponse` for the public API
+- `src/lib/http/public-cors.ts` — CORS headers + `withCors`/`optionsResponse` for the public API
 - `public/chat-widget.js` — zero-dependency embeddable chat widget (reads `data-agent`, streams answers)
 - `src/components/embed-agent-dialog.tsx` — copyable HTML/Next/React embed snippets
 - `src/components/test-chat-dialog.tsx` — dashboard test chat dialog (streams via public chat API)
+- `src/components/test-call-dialog.tsx` — browser voice call dialog (test console: fetch token → `Room.connect` → mic → live transcript → connect/end/mute + "agent not available" timeout)
+- `src/components/dashboard-breadcrumbs.tsx` — client breadcrumb (`usePathname`); shows `Dashboard › {project} › {kb}` with real names
 - `src/app/(product)/dashboard/projects/[projectId]/page.tsx` — project detail / KB manager page
 - `src/app/(product)/dashboard/projects/[projectId]/knowledge-bases/[kbId]/page.tsx` — KB detail / sources page
-- `src/lib/tenancy.ts` — `requireProjectAccess` / `requireKnowledgeBaseAccess` / `requireAgentAccess` / `filterProjectKbIds` multi-tenant guards
-- `src/lib/retrieval.ts` — `retrieveChunks` (embed + pgvector top-K), `isValidUuid`, `clampTopK`
-- `src/lib/ai.ts` — Gemini embedding model (`gemini-embedding-001`, 768 dims via `providerOptions.google.outputDimensionality`) + `embedTexts`/`embedText`; provider-agnostic `chatModel` (Gemini default / OpenRouter)
-- `src/lib/inngest.ts` — Inngest client + `chunkSource` job (extract → chunk → embed → store) + `chunkText`/`extractSourceText` + `sendKnowledgeSourceCreated`
-- `src/lib/r2.ts` — R2 upload/get/remove + `sourceObjectKey`
+- `src/lib/auth/tenancy.ts` — `requireProjectAccess` / `requireKnowledgeBaseAccess` / `requireAgentAccess` / `filterProjectKbIds` multi-tenant guards
+- `src/lib/ai/retrieval.ts` — `retrieveChunks` (embed + pgvector top-K), `isValidUuid`, `clampTopK`
+- `src/lib/ai/models.ts` — Gemini embedding model (`gemini-embedding-001`, 768 dims via `providerOptions.google.outputDimensionality`) + `embedTexts`/`embedText`; provider-agnostic `chatModel` (Gemini default / OpenRouter)
+- `src/lib/infra/inngest.ts` — Inngest client + `chunkSource` job (extract → chunk → embed → store) + `chunkText`/`extractSourceText` + `sendKnowledgeSourceCreated`
+- `src/lib/infra/r2.ts` — R2 upload/get/remove + `sourceObjectKey`
 - `src/lib/db.ts` — Drizzle `db` singleton over a `pg` Pool
-- `src/lib/auth.ts` — Better Auth server config (Drizzle adapter + email/password)
-- `src/lib/auth-client.ts` — Better Auth React client
+- `src/lib/auth/server.ts` — Better Auth server config (Drizzle adapter + email/password)
+- `src/lib/auth/client.ts` — Better Auth React client
+- `src/lib/auth/workspace.ts` — `getOrCreateWorkspace` + `WorkspaceInfo` (shared by dashboard layout and home)
 - `src/lib/db/schema.ts` — app tables: `workspaces`, `memberships`, `projects`, `knowledge_bases`, `agents` (multiple per project; config columns + `kb_ids` array), `knowledge_sources`, `chunks` (pgvector HNSW index) + types
 - `src/lib/db/auth-schema.ts` — Better Auth tables: `user`, `session`, `account`, `verification` (CLI-generated)
 - `drizzle.config.ts` — drizzle-kit config (Neon Postgres; schema list includes auth-schema)
 - `drizzle/` — generated migrations (0000 initial, 0001 auth, 0002 projects, 0003 knowledge_bases, 0004 sources + chunks, 0005 agents)
-- `docs/plan/m3-agent-builder/` — M3 plans (01–03 archived; milestone complete)
-- `src/lib/agent-validation.ts` — `parseAgentBody` shared agent field validator (create + update)
+- `docs/plan/m4-voice-runtime/` — M4 plans (01–03 complete, live-verified; milestone complete)
+- `src/lib/ai/agents/validation.ts` — `parseAgentBody` shared agent field validator (create + update)
 - `components.json` — shadcn/ui config (radix-nova style, neutral base, `@/` aliases)
 - `src/lib/utils.ts` — `cn()` Tailwind class-merge helper (clsx + tailwind-merge)
-- `src/components/ui/` — shadcn components: `sidebar.tsx`, `dialog.tsx`, `button.tsx`, `input.tsx`, `separator.tsx`, `sheet.tsx`, `tooltip.tsx`, `skeleton.tsx`
+- `src/components/ui/` — shadcn components: `sidebar.tsx`, `breadcrumb.tsx`, `dialog.tsx`, `dropdown-menu.tsx`, `button.tsx`, `input.tsx`, `separator.tsx`, `sheet.tsx`, `tooltip.tsx`, `skeleton.tsx`, `checkbox.tsx`, `combobox.tsx`, `field.tsx`, `input-group.tsx`, `label.tsx`, `select.tsx`, `sonner.tsx`, `textarea.tsx`
 - `src/hooks/use-mobile.ts` — `useIsMobile` matchMedia hook (shadcn sidebar dependency)
-- `src/components/dashboard-sidebar.tsx` — client sidebar (workspace header, projects nav, sign-out)
-- `src/lib/voices.ts` — static voice catalog (`VOICES`) + `LANGUAGES`
+- `src/components/dashboard-sidebar.tsx` — client sidebar (brand, workspace, projects nav, sign-out)
+- `src/lib/ai/voice/voices.ts` — static voice catalog (`VOICES`) + `LANGUAGES`
 - `src/components/agent-manager.tsx` — client wrapper lifting selected-agent state (list + editor)
-- `src/components/agent-list.tsx` — agent rows + Draft/Published badges + Test chat/Embed actions for published text agents
+- `src/components/agent-list.tsx` — agent rows + Draft/Published badges + Test chat/Embed for published text agents + **Test call** for published voice agents
 - `src/components/agent-editor.tsx` — agent builder form (identity/voice/knowledge/behavior + save/publish)
-- `.env.example` — env template (`DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `GEMINI_*`, `R2_*`, `INNGEST_*`)
+- `.env.example` — env template (`DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `GEMINI_*`, `R2_*`, `INNGEST_*`, `LIVEKIT_*`, `DEEPGRAM_API_KEY`)
 - `docs/spec.md` — product specification + milestones
 - `docs/plan/m1-foundations/` — archived M1 plans
 - `docs/plan/m2-knowledge-base/` — M2 plans (01–05 archived in `archive/`; active tracking in `TODO.md`)
@@ -70,18 +75,21 @@
 - `Home` (`src/app/page.tsx`) — renders the branded landing page
 - `LoginForm` (`src/app/login/login-form.tsx`) — calls `authClient.signIn.email`, redirects to `/dashboard`
 - `SignupForm` (`src/app/signup/signup-form.tsx`) — calls `authClient.signUp.email`, redirects to `/dashboard`
-- `DashboardPage` (`src/app/(product)/dashboard/page.tsx`) — `auth.api.getSession` guard + `getOrCreateWorkspace` (creates default workspace on the fly), queries projects + workspace name, renders `SidebarProvider` layout with sidebar (workspace name + project nav) and main inset (project list + New Project dialog)
+- `DashboardLayout` (`src/app/(product)/dashboard/layout.tsx`) — `auth.api.getSession` guard + `getOrCreateWorkspace`, fetches projects + KB names for breadcrumbs, renders `SidebarProvider` shell with `DashboardSidebar` and a header (SidebarTrigger + `DashboardBreadcrumbs`)
+- `DashboardPage` (`src/app/(product)/dashboard/page.tsx`) — content only: project list + New Project dialog (shell lives in the layout)
+- `DashboardBreadcrumbs` (`src/components/dashboard-breadcrumbs.tsx`) — trail from `usePathname()` with projected project/KB names supplied by the layout
 - `DashboardSidebar` (`src/components/dashboard-sidebar.tsx`) — client sidebar: AutoSupport + workspace header, "Projects" nav (links to project detail), `SignOutButton` footer
 - `NewProjectForm` (`src/components/new-project-form.tsx`) — shadcn `Dialog` modal; POSTs name to the projects API, closes + `router.refresh()` on success, error shown inside dialog
-- `auth` (`src/lib/auth.ts`) — Better Auth instance (Drizzle adapter, email/password, `databaseHooks.user.create.after` signup hook creating workspace + membership + default project, `baseURL`)
-- `authClient` (`src/lib/auth-client.ts`) — browser-side auth client
+- `auth` (`src/lib/auth/server.ts`) — Better Auth instance (Drizzle adapter, email/password, `databaseHooks.user.create.after` signup hook creating workspace + membership + default project, `baseURL`)
+- `authClient` (`src/lib/auth/client.ts`) — browser-side auth client
 - `db`, `pool` (`src/lib/db.ts`) — Drizzle client + `pg` Pool singleton
 - `workspaces`, `memberships`, `projects`, `knowledgeBases`, `agents` + type exports (`src/lib/db/schema.ts`) — table definitions
 - `user`, `session`, `account`, `verification` (`src/lib/db/auth-schema.ts`) — Better Auth tables (CLI-generated)
+- `getOrCreateWorkspace` + `WorkspaceInfo` (`src/lib/auth/workspace.ts`) — resolves or creates the caller's default workspace
 - `SignOutButton` (`src/components/sign-out-button.tsx`) — client sign-out control in sidebar footer
 - `GET/POST projects` handlers (`src/app/api/workspaces/[workspaceId]/projects/route.ts`) — list/create projects with session + membership guard
-- `requireProjectAccess` / `requireKnowledgeBaseAccess` / `requireAgentAccess` / `filterProjectKbIds` (`src/lib/tenancy.ts`) — resolve project/KB/agent → workspace → membership, 401/403/404; filter KB ids to a project
-- `parseAgentBody` (`src/lib/agent-validation.ts`) — validates/coerces partial agent fields for create/update
+- `requireProjectAccess` / `requireKnowledgeBaseAccess` / `requireAgentAccess` / `filterProjectKbIds` (`src/lib/auth/tenancy.ts`) — resolve project/KB/agent → workspace → membership, 401/403/404; filter KB ids to a project
+- `parseAgentBody` (`src/lib/ai/agents/validation.ts`) — validates/coerces partial agent fields for create/update
 - Agent API handlers (`src/app/api/projects/[projectId]/agents/route.ts`, `src/app/api/agents/[id]/route.ts`, `src/app/api/agents/[id]/publish/route.ts`) — list/create, update/delete, publish/unpublish (tenancy-guarded; publish requires non-empty prompt + attached KBs)
 - `GET/POST knowledge-bases` handlers (`src/app/api/projects/[projectId]/knowledge-bases/route.ts`) — list/create KBs (tenancy-guarded)
 - `PUT/DELETE knowledge-bases` handlers (`src/app/api/knowledge-bases/[kbId]/route.ts`) — rename/delete KB (tenancy-guarded)
@@ -92,24 +100,27 @@
 - `AgentManager` / `AgentList` / `AgentEditor` (`src/components/agent-*.tsx`) — multi-agent list/selection + per-agent builder form (save/publish via plan-02 API)
 - `KnowledgeBaseDetailPage` (`…/knowledge-bases/[kbId]/page.tsx`) — lists sources with status badges + add/delete controls
 - `NewKnowledgeBaseForm` / `KnowledgeBaseRowActions` (`src/components/knowledge-base-forms.tsx`) — create/rename/delete KB client controls
-- `SourceForms` / `SourceRowActions` (`src/components/source-forms.tsx`) — text/URL/file source forms + delete control
-- `chunkSource` (`src/lib/inngest.ts`) — Inngest fn: `load-source` → `mark-processing` → `extract-text` → `chunk-text` → `embed-chunks` → `store-chunks` → `mark-ready`, catch → `mark-failed` (id `process/knowledge-source`, trigger `knowledge-source.created`)
-- `chunkText` (`src/lib/inngest.ts`) — ~500-char chunks, 100 overlap, newline/space boundaries
-- `extractSourceText` (`src/lib/inngest.ts`) — text inline, URL via fetch + `stripHtml`, file via R2 + `pdf-parse`
-- `embedTexts` / `embedText` (`src/lib/ai.ts`) — Gemini `embedMany`/`embed` wrappers with `outputDimensionality: 768`
-- `chatModel` (`src/lib/ai.ts`) — LLM for grounded answers; Gemini `languageModel` (`GEMINI_CHAT_MODEL`, default `gemini-2.5-flash`) or OpenRouter OpenAI-compatible chat model when `OPENROUTER_API_KEY` + `OPENROUTER_MODEL` are set
-- `retrieveChunks` / `isValidUuid` / `clampTopK` (`src/lib/retrieval.ts`) — embed query + pgvector `<=>` cosine search scoped to a set of `kbIds` (all attached KBs) with optional `minScore` similarity threshold, topK default 5 clamp 1–10
+- `SourceSheet` / `SourceRowActions` (`src/components/source-forms.tsx`) — text/URL/file source forms + delete control
+- `TestCallDialog` (`src/components/test-call-dialog.tsx`) — browser voice call: fetch `{ url, room, token }`, `Room.connect`, publish mic, play agent audio, live transcript, connect/end/mute + "agent not available" timeout
+- `chunkSource` (`src/lib/infra/inngest.ts`) — Inngest fn: `load-source` → `mark-processing` → `extract-text` → `chunk-text` → `embed-chunks` → `store-chunks` → `mark-ready`, catch → `mark-failed` (id `process/knowledge-source`, trigger `knowledge-source.created`)
+- `chunkText` (`src/lib/infra/inngest.ts`) — ~500-char chunks, 100 overlap, newline/space boundaries
+- `extractSourceText` (`src/lib/infra/inngest.ts`) — text inline, URL via fetch + `stripHtml`, file via R2 + `pdf-parse`
+- `embedTexts` / `embedText` (`src/lib/ai/models.ts`) — Gemini `embedMany`/`embed` wrappers with `outputDimensionality: 768`
+- `chatModel` (`src/lib/ai/models.ts`) — LLM for grounded answers; Gemini `languageModel` (`GEMINI_CHAT_MODEL`, default `gemini-2.5-flash`) or OpenRouter OpenAI-compatible chat model when `OPENROUTER_API_KEY` + `OPENROUTER_MODEL` are set
+- `retrieveChunks` / `isValidUuid` / `clampTopK` (`src/lib/ai/retrieval.ts`) — embed query + pgvector `<=>` cosine search scoped to a set of `kbIds` (all attached KBs) with optional `minScore` similarity threshold, topK default 5 clamp 1–10
 - `POST query` handler (`src/app/api/knowledge-bases/[kbId]/query/route.ts`) — tenancy-guarded retrieval + `generateText` grounded answer; returns `{ answer, chunks }`
-- `loadPublishedTextAgent` / `buildAgentSystemPrompt` / `lastUserMessage` / `parseChatMessages` (`src/lib/agent-runtime.ts`) — public-runtime helpers: validate published text agent, compose grounded prompt (systemPrompt + guardrails + tone), extract current user query, validate/trim `messages`
+- `loadPublishedTextAgent` / `buildAgentSystemPrompt` / `lastUserMessage` / `parseChatMessages` (`src/lib/ai/agents/runtime.ts`) — public-runtime helpers: validate published text agent, compose grounded prompt (systemPrompt + guardrails + tone), extract current user query, validate/trim `messages`
 - `POST chat` handler (`src/app/api/public/agents/[agentId]/chat/route.ts`) — public streaming answer: `streamText` grounded in agent's KBs → `text/plain` stream; canned no-context reply when no chunks
 - `GET public agent` handler (`src/app/api/public/agents/[agentId]/route.ts`) — public metadata (id, name, status, channel, config: greeting/tone/suggestedPrompts/maxTurns)
-- `AgentList` actions (`src/components/agent-list.tsx`) — Test chat (`TestChatDialog`) + Embed (`EmbedAgentDialog`) for published text agents
-- `uploadToR2` / `getFromR2` / `removeFromR2` (`src/lib/r2.ts`) — R2 object storage (S3 API)
+- `AgentList` actions (`src/components/agent-list.tsx`) — Test chat (`TestChatDialog`) + Embed (`EmbedAgentDialog`) for published text agents; **Test call** (`TestCallDialog`) for published voice agents
+- `uploadToR2` / `getFromR2` / `removeFromR2` (`src/lib/infra/r2.ts`) — R2 object storage (S3 API)
+- `createVoiceSession` (`src/lib/infra/livekit.ts`) — LiveKit room + short-lived AccessToken → `{ url, room, token }`
 
 ## Dependencies
 - `next` 16.3.0, `react` 19.2.8, `react-dom` 19.2.8
 - `drizzle-orm`, `pg`, `better-auth`
 - `inngest` ^4, `ai` ^7, `@ai-sdk/google`, `@ai-sdk/openai-compatible`, `@aws-sdk/client-s3`, `pdf-parse` ^2
+- voice runtime: `livekit-server-sdk`, `livekit-client`, `@livekit/agents`, `@livekit/agents-plugin-deepgram`, `@livekit/rtc-node`
 - dev: `drizzle-kit`, `@types/pg`, `tailwindcss` ^4, `@tailwindcss/postcss`, `typescript` ^5, `eslint` ^9, `eslint-config-next` 16.3.0
 - UI: `class-variance-authority`, `clsx`, `tailwind-merge`, `lucide-react`, `radix-ui` (unified), `tw-animate-css` (shadcn/ui via `shadcn` CLI; `components.json`)
 
@@ -117,13 +128,13 @@
 - `DATABASE_URL` — Neon Postgres connection string (set locally in `.env`; set in Vercel production)
 - `BETTER_AUTH_SECRET` — Better Auth secret (set locally in `.env`; set in Vercel production)
 - `BETTER_AUTH_URL` — app origin for Better Auth callbacks/redirects (`http://localhost:3000` locally; production URL on Vercel)
-- `GEMINI_API_KEY` / `GOOGLE_API_KEY` — Gemini API key for embeddings (`src/lib/ai.ts` falls back between the two)
+- `GEMINI_API_KEY` / `GOOGLE_API_KEY` — Gemini API key for embeddings (`src/lib/ai/models.ts` falls back between the two)
 - `GEMINI_EMBEDDING_MODEL` — embedding model id (default `gemini-embedding-001`, 768 dims)
 - `GEMINI_CHAT_MODEL` — Gemini chat model for grounded answers (default `gemini-2.5-flash`)
 - `OPENROUTER_API_KEY` / `OPENROUTER_MODEL` / `OPENROUTER_BASE_URL` — optional: route the chat model through OpenRouter (OpenAI-compatible) instead of Gemini
 - `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` — Cloudflare R2 (S3 API) for file sources
 - `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY` — Inngest cloud keys (optional for dev); `INNGEST_DEV=1` for local dev server
-- `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` — LiveKit Cloud (Build tier) URL + API credentials for the voice runtime (`src/lib/livekit.ts`, `src/voice-agent/worker.ts`)
+- `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` — LiveKit Cloud (Build tier) URL + API credentials for the voice runtime (`src/lib/infra/livekit.ts`, `src/voice-agent/worker.ts`)
 - `DEEPGRAM_API_KEY` — Deepgram key for voice agent STT/TTS (`src/voice-agent/worker.ts`)
 
 ## API Endpoints

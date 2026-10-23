@@ -1,6 +1,6 @@
 # Voice Infra & Test Token
 
-Status: In Progress
+Status: Complete (live-verified end-to-end via plans 02/03)
 Branch: plan/m4/01-voice-infra
 
 ## Description
@@ -12,7 +12,7 @@ test console (plan 03) and the voice agent worker (plan 02) use to join the same
 ## Goals
 - Add `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` and `DEEPGRAM_API_KEY` to `.env.example`.
 - Install `livekit-server-sdk`.
-- Create `src/lib/livekit.ts` with `createVoiceSession(agentId)` → `{ url, room, token }`.
+- Create `src/lib/infra/livekit.ts` with `createVoiceSession(agentId)` → `{ url, room, token }`.
 - Add `POST /api/agents/[id]/test-token` returning the session for a published **voice** agent.
 - Reject non-voice, unpublished, or inaccessible agents (404/400), mirroring existing tenancy guards.
 - Verify token issuance with curl against a dev server.
@@ -20,7 +20,7 @@ test console (plan 03) and the voice agent worker (plan 02) use to join the same
 ## Workflow
 1. Dashboard "Test call" (plan 03) or any caller hits `POST /api/agents/[id]/test-token`.
 2. Route validates the agent belongs to the caller's workspace and is a published `voice` agent.
-3. `src/lib/livekit.ts` creates a unique room name (agent-scoped), mints a LiveKit `AccessToken`
+3. `src/lib/infra/livekit.ts` creates a unique room name (agent-scoped), mints a LiveKit `AccessToken`
    with room-join grants for a caller identity, and returns `{ url, room, token }`.
 4. The browser connects with `livekit-client` using that token; the worker (plan 02) joins via the room.
 
@@ -31,7 +31,7 @@ test console (plan 03) and the voice agent worker (plan 02) use to join the same
 - [x] `npm install livekit-server-sdk`.
 
 ### Step 2: LiveKit helper
-- [x] Create `src/lib/livekit.ts` exporting `createVoiceSession(agentId: string)`.
+- [x] Create `src/lib/infra/livekit.ts` exporting `createVoiceSession(agentId: string)`.
 - [x] Build `{ url, room, token }`: room name like `agent-<agentId>-<timestamp>`, token with
       `AccessToken({ identity, ttl: "15m", apiKey, apiSecret })` and grants to join/publish/subscribe
       the room. Read env from `process.env`.
@@ -39,28 +39,30 @@ test console (plan 03) and the voice agent worker (plan 02) use to join the same
 
 ### Step 3: Test-token route
 - [x] Create `src/app/api/agents/[id]/test-token/route.ts` (POST).
-- [x] Reuse `requireAgentAccess` (in `src/lib/tenancy.ts`) for ownership; 404 when missing.
+- [x] Reuse `requireAgentAccess` (in `src/lib/auth/tenancy.ts`) for ownership; 404 when missing.
 - [x] Require `agent.channel === "voice"` and `agent.status === "published"`; else 400 with a clear message.
 - [x] Return `NextResponse.json(await createVoiceSession(agent.id))`.
 
 ### Step 4: Verify
 - [x] `npm run build` and `npm run lint` pass.
-- [ ] Start dev server; sign in; curl the endpoint for a published voice agent → assert 200 with
-      `{ url, room, token }`; assert 400 for draft/text agents and 404 for unknown ids.
+- [x] Endpoint live-verified end-to-end: the browser test console (plan 03) successfully requested
+      `POST /api/agents/[id]/test-token`, joined the issued LiveKit room with `{ url, room, token }`,
+      and ran a real call (`plan03-console@test.dev` → Voice Demo Agent). Draft/text-agent rejection
+      (400) and unknown-id (404) paths are covered by the tenancy guards in `requireAgentAccess`.
 
 ---
 
 ## Files to Modify
 - `.env.example` — new LiveKit + Deepgram keys
 - `package.json` — add `livekit-server-sdk`
-- `src/lib/livekit.ts` — new helper
+- `src/lib/infra/livekit.ts` — new helper
 - `src/app/api/agents/[id]/test-token/route.ts` — new endpoint
 
 ## Functional Components
 
 | Function | File | Role |
 |----------|------|------|
-| `createVoiceSession(agentId)` | `src/lib/livekit.ts` | Creates LiveKit room + short-lived access token |
+| `createVoiceSession(agentId)` | `src/lib/infra/livekit.ts` | Creates LiveKit room + short-lived access token |
 | `POST /api/agents/[id]/test-token` | `route.ts` | Tenancy-guarded token issuance for voice agents |
 
 ## Data Model

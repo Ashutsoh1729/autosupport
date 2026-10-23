@@ -1,6 +1,6 @@
 # Voice Test Console (Browser)
 
-Status: Done
+Status: Complete (live-verified end-to-end; merged via PR #26 after absorbing main)
 Branch: plan/m4-voice-runtime
 
 ## Description

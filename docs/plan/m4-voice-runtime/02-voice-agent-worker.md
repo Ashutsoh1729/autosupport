@@ -38,13 +38,13 @@ and behaves per its configuration.
 - [x] Add `voice-agent: shell: "npx tsx src/voice-agent/worker.ts start"` to `mprocs.yaml`.
 
 ### Step 2: Agent loading
-- [x] Add `loadPublishedVoiceAgent(agentId)` in `src/lib/agent-runtime.ts` (mirror `loadPublishedTextAgent`)
+- [x] Add `loadPublishedVoiceAgent(agentId)` in `src/lib/ai/agents/runtime.ts` (mirror `loadPublishedTextAgent`)
       returning the full agent row for a published `voice` agent or `null`.
 - [x] Derive voice settings (Deepgram voice id, language, interruption sensitivity, end-call keyword)
       from `agent.voiceConfig`; derive greeting/escalation from `agent.config` (with safe defaults).
 
 ### Step 3: LLM + RAG callback
-- [x] Create `src/lib/voice-answer.ts` exporting `answerTurn(query, agent, history)` that:
+- [x] Create `src/lib/ai/voice/answer.ts` exporting `answerTurn(query, agent, history)` that:
       calls `retrieveChunks(agent.kbIds, query, agent.topK, agent.similarityThreshold)`,
       builds the system prompt via `buildAgentSystemPrompt(agent)` (reuse from M3),
       and returns the `chatModel` streaming reply.
@@ -72,8 +72,8 @@ and behaves per its configuration.
 
 ## Files to Modify
 - `src/voice-agent/worker.ts` — new LiveKit worker
-- `src/lib/agent-runtime.ts` — add `loadPublishedVoiceAgent`
-- `src/lib/voice-answer.ts` — new RAG→LLM answer builder
+- `src/lib/ai/agents/runtime.ts` — add `loadPublishedVoiceAgent`
+- `src/lib/ai/voice/answer.ts` — new RAG→LLM answer builder
 - `mprocs.yaml` — add `voice-agent` process
 - `package.json` — LiveKit agent + Deepgram plugin deps
 
@@ -83,8 +83,8 @@ and behaves per its configuration.
 |----------|------|------|
 | `Worker` | `src/voice-agent/worker.ts` | Joins rooms, drives the voice pipeline |
 | `VoicePipelineAgent` | `src/voice-agent/worker.ts` | STT→LLM→TTS orchestration with barge-in |
-| `loadPublishedVoiceAgent(agentId)` | `src/lib/agent-runtime.ts` | Validated voice-agent loader |
-| `answerTurn(query, agent, history)` | `src/lib/voice-answer.ts` | RAG + grounded LLM answer |
+| `loadPublishedVoiceAgent(agentId)` | `src/lib/ai/agents/runtime.ts` | Validated voice-agent loader |
+| `answerTurn(query, agent, history)` | `src/lib/ai/voice/answer.ts` | RAG + grounded LLM answer |
 
 ## Data Model
 No new tables. Reads the `agents` row and its `config` / `voiceConfig` jsonb:
