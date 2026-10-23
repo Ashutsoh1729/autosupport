@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { agents } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { requireAgentAccess } from "@/lib/tenancy";
+import { requireAgentAccess } from "@/lib/auth/tenancy";
 
 export async function POST(
   request: Request,

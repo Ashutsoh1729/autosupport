@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { knowledgeSources } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { requireKnowledgeBaseAccess } from "@/lib/tenancy";
-import { uploadToR2, sourceObjectKey } from "@/lib/r2";
-import { sendKnowledgeSourceCreated } from "@/lib/inngest";
+import { requireKnowledgeBaseAccess } from "@/lib/auth/tenancy";
+import { uploadToR2, sourceObjectKey } from "@/lib/infra/r2";
+import { sendKnowledgeSourceCreated } from "@/lib/infra/inngest";
 
 const ALLOWED_EXTENSIONS = [".pdf", ".txt", ".md", ".markdown"];
 

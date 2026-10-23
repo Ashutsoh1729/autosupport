@@ -14,7 +14,7 @@ import type {
   AgentConfig,
   VoiceConfig,
 } from "@/lib/db/schema";
-import { VOICES, LANGUAGES } from "@/lib/voices";
+import { VOICES, LANGUAGES } from "@/lib/ai/voice/voices";
 import { Button } from "@/components/ui/button";
 import {
   Combobox,

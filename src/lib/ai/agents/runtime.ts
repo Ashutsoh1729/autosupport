@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { agents, type Agent } from "@/lib/db/schema";
-import { isValidUuid } from "@/lib/retrieval";
+import { isValidUuid } from "@/lib/ai/retrieval";
 
 const TEXT_CHANNEL = "text" as const;
 const VOICE_CHANNEL = "voice" as const;

@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { auth } from "@/lib/auth/server";
 import { db } from "@/lib/db";
 import { memberships, projects, knowledgeBases, agents } from "@/lib/db/schema";
 import { eq, and, inArray } from "drizzle-orm";

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireAgentAccess } from "@/lib/tenancy";
-import { createVoiceSession } from "@/lib/livekit";
+import { requireAgentAccess } from "@/lib/auth/tenancy";
+import { createVoiceSession } from "@/lib/infra/livekit";
 
 /**
  * POST /api/agents/[id]/test-token

@@ -1,12 +1,11 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { auth } from "@/lib/auth";
+import { auth } from "@/lib/auth/server";
 import { db } from "@/lib/db";
 import { projects, knowledgeBases, agents } from "@/lib/db/schema";
 import { eq, asc } from "drizzle-orm";
 import { AgentManager } from "@/components/agent-manager";
-import { PageBack } from "@/components/page-back";
 import {
   NewKnowledgeBaseDialog,
   KnowledgeBaseRowActions,
@@ -47,12 +46,8 @@ export default async function ProjectDetailPage({
     .orderBy(asc(agents.createdAt));
 
   return (
-    <div className="flex flex-1 flex-col items-center px-6 py-8 bg-zinc-50 dark:bg-black">
+    <main className="flex flex-1 flex-col items-center px-6 py-8">
       <div className="flex w-full max-w-2xl flex-col gap-6">
-        <div className="flex items-start justify-between gap-4">
-          <PageBack href="/dashboard" />
-        </div>
-
         <div>
           <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
             {project.name}
@@ -62,7 +57,11 @@ export default async function ProjectDetailPage({
           </p>
         </div>
 
-        <AgentManager projectId={project.id} agents={agentRows} kbs={kbRows} />
+        <AgentManager
+          projectId={project.id}
+          agents={agentRows}
+          kbs={kbRows}
+        />
 
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
@@ -96,6 +95,6 @@ export default async function ProjectDetailPage({
           )}
         </div>
       </div>
-    </div>
+    </main>
   );
 }

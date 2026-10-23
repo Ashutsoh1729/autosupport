@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { embedText } from "@/lib/ai";
+import { embedText } from "@/lib/ai/models";
 
 export type RetrievedChunk = {
   content: string;
