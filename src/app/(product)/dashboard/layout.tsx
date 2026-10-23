@@ -11,6 +11,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { DashboardSidebar, SidebarProject } from "@/components/dashboard-sidebar";
+import { DashboardBreadcrumbs } from "@/components/dashboard-breadcrumbs";
 
 export default async function DashboardLayout({
   children,
@@ -39,6 +40,10 @@ export default async function DashboardLayout({
     name: project.name,
   }));
 
+  const projectNames = Object.fromEntries(
+    sidebarProjects.map((p) => [p.id, p.name]),
+  );
+
   return (
     <SidebarProvider>
       <DashboardSidebar
@@ -48,9 +53,7 @@ export default async function DashboardLayout({
       <SidebarInset className="bg-zinc-50 dark:bg-black">
         <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
           <SidebarTrigger className="-ml-1" />
-          <p className="text-sm text-muted-foreground">
-            Signed in as {session.user.email}
-          </p>
+          <DashboardBreadcrumbs projectNames={projectNames} />
         </header>
         {children}
       </SidebarInset>
